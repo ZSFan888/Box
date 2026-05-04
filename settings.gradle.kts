@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "ProxyMax"
+rootProject.name = "Box"
 include(":app")
