@@ -1,4 +1,5 @@
 package com.proxymax.data.model
+import com.proxymax.data.model.PerAppMode
 
 import com.proxymax.core.CoreType
 
