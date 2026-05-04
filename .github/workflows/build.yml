@@ -2,7 +2,7 @@ name: 🚀 Build ProxyMax APK
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup JDK ${{ env.JAVA_VERSION }}
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -41,12 +41,9 @@ jobs:
           name: jniLibs
           path: app/src/main/jniLibs/
       - name: Grant gradlew permission
-        run: |
-          chmod +x ./gradlew
-          ls -l ./gradlew
+        run: chmod +x ./gradlew
       - name: Build Debug APK
-        # 使用 bash 显式调用，确保解析正确
-        run: bash ./gradlew assembleDebug --no-daemon --stacktrace
+        run: bash ./gradlew assembleDebug --stacktrace --build-cache
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
