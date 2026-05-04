@@ -1,51 +1,17 @@
 name: 🚀 Build ProxyMax APK
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-env:
-  JAVA_VERSION: "17"
-
+on: [push, workflow_dispatch]
 jobs:
-  prepare-cores:
-    name: 📦 Prepare Go Cores
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download & place .so files
-        run: |
+      - uses: actions/setup-java@v4
+        with: { java-version: "17", distribution: "temurin" }
+      - run: |
           chmod +x scripts/place_libs.sh
           bash scripts/place_libs.sh
+          chmod +x ./gradlew
+          # 禁用 daemon 和 parallel，确保 CI 环境不会因并发引发 Daemon 崩溃
+          bash ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace
       - uses: actions/upload-artifact@v4
-        with:
-          name: jniLibs
-          path: app/src/main/jniLibs/
-
-  build-debug:
-    name: 🔨 Build Debug APK
-    needs: prepare-cores
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-          cache: gradle
-      - name: Download jniLibs
-        uses: actions/download-artifact@v4
-        with:
-          name: jniLibs
-          path: app/src/main/jniLibs/
-      - name: Grant gradlew permission
-        run: chmod +x ./gradlew
-      - name: Build Debug APK
-        run: bash ./gradlew assembleDebug --stacktrace --build-cache
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProxyMax-debug
-          path: app/build/outputs/apk/debug/*.apk
+        with: { name: ProxyMax-debug, path: app/build/outputs/apk/debug/*.apk }
