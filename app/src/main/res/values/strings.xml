@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ProxyMax</string>
+    <string name="vpn_service_description">ProxyMax VPN Service</string>
+</resources>

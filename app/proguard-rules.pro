@@ -1,0 +1,6 @@
+-keep class com.proxymax.core.jni.** { *; }
+-keep class com.proxymax.service.**  { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn okhttp3.**
+-dontwarn okio.**
