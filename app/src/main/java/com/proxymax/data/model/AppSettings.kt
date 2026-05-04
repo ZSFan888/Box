@@ -19,4 +19,3 @@ data class AppSettings(
     val logLevel:         String = "info"  // debug/info/warn/error/silent
 )
 
-enum class PerAppMode { GLOBAL, WHITELIST, BLACKLIST }
