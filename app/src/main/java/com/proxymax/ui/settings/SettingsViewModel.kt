@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.proxymax.core.CoreType
-import com.proxymax.ui.perrapp.PerAppMode
+import com.proxymax.data.model.PerAppMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

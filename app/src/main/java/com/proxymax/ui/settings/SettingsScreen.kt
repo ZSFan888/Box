@@ -1,5 +1,7 @@
 package com.proxymax.ui.settings
 
+import com.proxymax.data.model.PerAppMode
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -75,9 +77,9 @@ fun SettingsScreen(
                 headlineContent   = { Text("应用分流设置") },
                 supportingContent = {
                     val modeText = when (ui.perAppMode) {
-                        com.proxymax.ui.perrapp.PerAppMode.GLOBAL    -> "全局代理"
-                        com.proxymax.ui.perrapp.PerAppMode.WHITELIST -> "白名单模式"
-                        com.proxymax.ui.perrapp.PerAppMode.BLACKLIST -> "黑名单模式"
+                        PerAppMode.GLOBAL    -> "全局代理"
+                        PerAppMode.WHITELIST -> "白名单模式"
+                        PerAppMode.BLACKLIST -> "黑名单模式"
                     }
                     Text("当前：$modeText")
                 },
