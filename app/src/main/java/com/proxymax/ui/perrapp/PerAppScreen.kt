@@ -80,7 +80,27 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
                     it.packageName.contains(ui.query, ignoreCase = true)
                 }
             }
-            LazyColumn {
+            if (ui.isLoading) {
+                // Skeleton 骨架防闪烁
+                LazyColumn {
+                    items(12) {
+                        ListItem(
+                            headlineContent = {
+                                Box(Modifier.fillMaxWidth(0.5f).height(14.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small))
+                            },
+                            supportingContent = {
+                                Box(Modifier.fillMaxWidth(0.7f).height(11.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small))
+                            },
+                            leadingContent = {
+                                Box(Modifier.size(40.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium))
+                            }
+                        )
+                    }
+                }
+            } else LazyColumn {
                 items(filtered, key = { it.packageName }) { app ->
                     AppItem(
                         app       = app,
