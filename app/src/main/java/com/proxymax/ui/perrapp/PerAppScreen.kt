@@ -1,9 +1,7 @@
 package com.proxymax.ui.perrapp
 
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -16,7 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import com.proxymax.data.model.PerAppMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +30,6 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
                     if (ui.isLoading) {
                         CircularProgressIndicator(Modifier.size(24.dp).padding(end = 8.dp))
                     }
-                    // 全选 / 全不选
                     IconButton(onClick = vm::selectAll) {
                         Icon(Icons.Default.SelectAll, "全选")
                     }
@@ -44,13 +42,11 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
 
-            // ── 模式选择 ─────────────────────────────────────────────────
             ModeSelector(
                 mode     = ui.mode,
                 onChange = vm::setMode
             )
 
-            // ── 搜索栏 ───────────────────────────────────────────────────
             OutlinedTextField(
                 value         = ui.query,
                 onValueChange = vm::onQueryChange,
@@ -62,17 +58,15 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
-            // ── 说明文字 ─────────────────────────────────────────────────
             val hint = when (ui.mode) {
                 PerAppMode.WHITELIST -> "✅ 仅以下选中的 App 走代理，其余直连"
                 PerAppMode.BLACKLIST -> "🚫 以下选中的 App 直连，其余走代理"
-                else -> "所有 App 走代理（全局模式）"
+                else                 -> "所有 App 走代理（全局模式）"
             }
             Text(hint, style = MaterialTheme.typography.bodySmall,
                  color = MaterialTheme.colorScheme.onSurfaceVariant,
                  modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 
-            // ── App 列表 ─────────────────────────────────────────────────
             val filtered = remember(ui.apps, ui.query) {
                 if (ui.query.isBlank()) ui.apps
                 else ui.apps.filter {
@@ -81,7 +75,6 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
                 }
             }
             if (ui.isLoading) {
-                // Skeleton 骨架防闪烁
                 LazyColumn {
                     items(12) {
                         ListItem(
@@ -103,19 +96,16 @@ fun PerAppScreen(vm: PerAppViewModel = hiltViewModel()) {
             } else LazyColumn {
                 items(filtered, key = { it.packageName }) { app ->
                     AppItem(
-                        app       = app,
-                        checked   = app.packageName in ui.selected,
-                        onToggle  = { vm.toggleApp(app.packageName) },
-                        enabled   = ui.mode != PerAppMode.GLOBAL
+                        app      = app,
+                        checked  = app.packageName in ui.selected,
+                        onToggle = { vm.toggleApp(app.packageName) },
+                        enabled  = ui.mode != PerAppMode.GLOBAL
                     )
                 }
             }
         }
     }
 }
-
-// ── 模式选择器 ────────────────────────────────────────────────────────────────
-enum class PerAppMode { GLOBAL, WHITELIST, BLACKLIST }
 
 @Composable
 fun ModeSelector(mode: PerAppMode, onChange: (PerAppMode) -> Unit) {
@@ -139,7 +129,6 @@ fun ModeSelector(mode: PerAppMode, onChange: (PerAppMode) -> Unit) {
     }
 }
 
-// ── App 列表项 ─────────────────────────────────────────────────────────────────
 data class AppInfo(
     val packageName: String,
     val label:       String,
@@ -164,10 +153,10 @@ fun AppItem(app: AppInfo, checked: Boolean, onToggle: () -> Unit, enabled: Boole
         },
         leadingContent = {
             if (icon != null) {
-                Image(
-                    painter  = rememberAsyncImagePainter(icon),
+                AsyncImage(
+                    model             = icon,
                     contentDescription = app.label,
-                    modifier = Modifier.size(40.dp)
+                    modifier          = Modifier.size(40.dp)
                 )
             } else {
                 Icon(Icons.Default.Android, null, modifier = Modifier.size(40.dp))
