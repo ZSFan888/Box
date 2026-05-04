@@ -1,4 +1,4 @@
-name: 🚀 Build ProxyMax APK
+name: Build
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -11,7 +11,7 @@ jobs:
           chmod +x scripts/place_libs.sh
           bash scripts/place_libs.sh
           chmod +x ./gradlew
-          # 禁用 daemon 和 parallel，确保 CI 环境不会因并发引发 Daemon 崩溃
-          bash ./gradlew assembleDebug --no-daemon --no-parallel --stacktrace
+          # 仅编译 app 模块，禁用所有可能导致内存溢出的优化
+          ./gradlew :app:assembleDebug -Pandroid.enableDexingArtifactTransform.desugaring=false --stacktrace
       - uses: actions/upload-artifact@v4
-        with: { name: ProxyMax-debug, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: APK, path: app/build/outputs/apk/debug/*.apk }
