@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#006874"
-        android:pathData="M54,14 A40,40 0 1,1 53.99,14 Z"/>
-  <path android:fillColor="#FFFFFF"
-        android:pathData="M36,54 L54,36 L72,54 L54,72 Z"/>
-  <circle android:fillColor="#FFFFFF" android:cx="54" android:cy="54" android:r="8"/>
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,34L64,34L64,74L44,74Z" />
 </vector>
