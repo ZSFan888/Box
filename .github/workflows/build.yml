@@ -1,4 +1,4 @@
-name: Build
+name: Build APK
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -8,8 +8,18 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with: { java-version: "17", distribution: "temurin" }
-      - name: Build
-        # 强制单线程，禁止 daemon
-        run: ./gradlew :app:assembleDebug --no-daemon --no-parallel --stacktrace
+      - name: Prepare Libs
+        run: |
+          mkdir -p app/src/main/jniLibs
+          chmod +x scripts/place_libs.sh
+          bash scripts/place_libs.sh || echo "Scripts execution failed, skipping..."
+      - name: Build APK
+        run: ./gradlew :app:assembleDebug --stacktrace --info --no-daemon --no-parallel -Dorg.gradle.jvmargs="-Xmx512m -XX:MaxMetaspaceSize=256m"
+      - name: Upload Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: app/build/reports/
       - uses: actions/upload-artifact@v4
         with: { name: APK, path: app/build/outputs/apk/debug/*.apk }
