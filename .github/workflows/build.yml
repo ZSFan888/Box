@@ -8,7 +8,19 @@ jobs:
       - uses: actions/setup-java@v4
         with: { java-version: "17", distribution: "temurin" }
       - name: Build APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace -Dorg.gradle.jvmargs="-Xmx1g -XX:MaxMetaspaceSize=512m"
+        run: |
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx1g -XX:MaxMetaspaceSize=512m" \
+            2>&1 | tee /tmp/build.log
+          grep -E "(Caused by|error:|FAILED|Unresolved|cannot find)" /tmp/build.log | head -60 || true
+          # 判断构建结果
+          grep -q "BUILD SUCCESSFUL" /tmp/build.log && exit 0 || exit 1
       - uses: actions/upload-artifact@v4
         if: success()
         with: { name: APK, path: app/build/outputs/apk/debug/*.apk }
+      - name: Upload Error Summary
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-summary
+          path: /tmp/build.log
