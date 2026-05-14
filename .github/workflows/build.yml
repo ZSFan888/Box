@@ -31,9 +31,24 @@ jobs:
           D2J=$(find /tmp/d2j -name "d2j-dex2jar.sh" | head -1)
           chmod +x "$D2J"
 
-          # 只转 classes.dex（libbox 主 dex），避免其他 dex 引入无用依赖
-          bash "$D2J" -o app/libs/libbox.jar /tmp/sfa_uni/classes.dex
-          echo "libbox.jar: $(du -sh app/libs/libbox.jar | cut -f1)"
+          # 只转 classes.dex（libbox 主 dex）
+          bash "$D2J" -o /tmp/libbox_full.jar /tmp/sfa_uni/classes.dex
+          echo "libbox_full.jar: $(du -sh /tmp/libbox_full.jar | cut -f1)"
+
+          # 只保留 io/nekohasekai/ 和 go/ 包，剔除 androidx/appcompat/android.support 等
+          # 避免 Duplicate class 冲突
+          mkdir -p /tmp/libbox_filtered
+          cd /tmp/libbox_filtered
+          jar xf /tmp/libbox_full.jar
+          # 删除会冲突的 Android framework 类，只留 libbox 自己的类
+          rm -rf android androidx com/google META-INF kotlin kotlinx \
+                 android.support org/jetbrains 2>/dev/null || true
+          jar cf /tmp/libbox.jar .
+          cd -
+          cp /tmp/libbox.jar app/libs/libbox.jar
+          echo "libbox.jar (filtered): $(du -sh app/libs/libbox.jar | cut -f1)"
+          # 验证关键类存在
+          jar tf app/libs/libbox.jar | grep "nekohasekai/libbox/Libbox" || echo "WARNING: Libbox class not found"
 
           # 提取各 ABI libbox.so
           for ABI in arm64-v8a armeabi-v7a x86_64; do
