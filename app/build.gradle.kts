@@ -71,6 +71,9 @@ android {
 }
 
 dependencies {
+    // sing-box libbox Java binding (从 SFA APK 提取，CI 生成)
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+
     // Core
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")

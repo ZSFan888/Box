@@ -14,18 +14,23 @@ jobs:
       - uses: actions/setup-java@v5
         with: { java-version: "17", distribution: "temurin" }
 
-      - name: Fetch sing-box native libs (libbox.so v1.13.11)
+      - name: Fetch sing-box libbox (jar + libbox.so v1.13.11)
         run: |
           BASE="https://github.com/sagernet/sing-box/releases/download/v1.13.11"
+          mkdir -p app/libs
+          curl -fsSL -o /tmp/sfa_uni.apk "${BASE}/SFA-1.13.11-universal.apk"
+          unzip -o /tmp/sfa_uni.apk "assets/main.jar" -d /tmp/sfa_uni
+          cp /tmp/sfa_uni/assets/main.jar app/libs/libbox.jar
+          echo "libbox.jar: $(du -sh app/libs/libbox.jar | cut -f1)"
           for ABI in arm64-v8a armeabi-v7a x86_64; do
-            APK="SFA-1.13.11-${ABI}.apk"
-            curl -fsSL -o "/tmp/${APK}" "${BASE}/${APK}"
+            curl -fsSL -o "/tmp/sfa_${ABI}.apk" "${BASE}/SFA-1.13.11-${ABI}.apk"
             mkdir -p "app/src/main/jniLibs/${ABI}"
-            unzip -o "/tmp/${APK}" "lib/${ABI}/libbox.so" -d /tmp/lbtmp
+            unzip -o "/tmp/sfa_${ABI}.apk" "lib/${ABI}/libbox.so" -d /tmp/lbtmp
             cp "/tmp/lbtmp/lib/${ABI}/libbox.so" "app/src/main/jniLibs/${ABI}/libbox.so"
-            rm -rf /tmp/lbtmp "/tmp/${APK}"
-            echo "libbox.so -> jniLibs/${ABI}/"
+            rm -rf /tmp/lbtmp "/tmp/sfa_${ABI}.apk"
+            echo "libbox.so -> jniLibs/${ABI}/ ($(du -sh app/src/main/jniLibs/${ABI}/libbox.so | cut -f1))"
           done
+          rm -rf /tmp/sfa_uni /tmp/sfa_uni.apk
 
       - name: Set version info
         run: |
