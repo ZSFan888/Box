@@ -25,11 +25,11 @@ object SubscriptionParser {
                 ProfileType.CLASH_YAML to parseClashYaml(trimmed, profileId)
 
             // Xray / v2ray JSON
-            trimmed.startsWith("{") && trimmed.contains(""inbounds"") ->
+            trimmed.startsWith("{") && trimmed.contains("\"inbounds\"") ->
                 ProfileType.XRAY_JSON to emptyList() // JSON 格式不拆分节点，整体使用
 
             // sing-box JSON
-            trimmed.startsWith("{") && trimmed.contains(""outbounds"") ->
+            trimmed.startsWith("{") && trimmed.contains("\"outbounds\"") ->
                 ProfileType.SINGBOX_JSON to emptyList()
 
             // Base64 编码的节点列表（常见机场格式）
