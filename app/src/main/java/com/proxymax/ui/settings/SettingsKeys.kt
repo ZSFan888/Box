@@ -14,6 +14,7 @@ object SettingsKeys {
     // 端口
     val mixedPort             = intPreferencesKey("mixed_port")
     val apiPort               = intPreferencesKey("api_port")
+    val apiSecret             = stringPreferencesKey("api_secret")
     // 分流规则
     val geositeCnDirect       = booleanPreferencesKey("geosite_cn_direct")
     val geoipPrivateDirect    = booleanPreferencesKey("geoip_private_direct")

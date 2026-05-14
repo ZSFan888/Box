@@ -14,6 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.proxymax.core.*
 import com.proxymax.ui.widget.SpeedChart
@@ -26,6 +29,22 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
     val liveStats      by vm.liveStats.collectAsState()
     val noProfileError by vm.noProfileError.collectAsState()
     val snackbar       = remember { SnackbarHostState() }
+
+    // VPN 权限请求 launcher
+    val vpnPermLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            vm.onVpnPermissionGranted()
+        }
+    }
+
+    // 监听 ViewModel 发出的权限请求事件
+    LaunchedEffect(Unit) {
+        vm.vpnPermissionNeeded.collect { prepareIntent ->
+            vpnPermLauncher.launch(prepareIntent)
+        }
+    }
 
     LaunchedEffect(noProfileError) {
         if (noProfileError) {
