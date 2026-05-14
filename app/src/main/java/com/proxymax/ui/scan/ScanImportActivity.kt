@@ -60,11 +60,6 @@ class ScanImportActivity : ComponentActivity() {
                     onImported = { name, uris ->
                         importScope.launch {
                             val raw = uris.joinToString("\n")
-                            profileRepo.fetchAndSaveProfile(name, "").fold(
-                                onSuccess = {},
-                                onFailure = {}
-                            )
-                            // 直接用 saveRawConfig 写入 DB
                             runCatching { profileRepo.saveRawConfig(name, "", raw) }
                                 .onSuccess { profile ->
                                     Toast.makeText(

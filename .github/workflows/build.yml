@@ -14,6 +14,17 @@ jobs:
       - uses: actions/setup-java@v5
         with: { java-version: "17", distribution: "temurin" }
 
+      - name: Set version info
+        run: |
+          echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
+          # tag 格式 v1.2.3 → 1.2.3，否则用 1.0.${{ github.run_number }}
+          RAW_TAG="${{ github.ref_name }}"
+          if [[ "$RAW_TAG" =~ ^v[0-9] ]]; then
+            echo "VERSION_NAME=${RAW_TAG#v}" >> $GITHUB_ENV
+          else
+            echo "VERSION_NAME=1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+
       - name: Build Debug APK
         run: |
           ./gradlew :app:assembleDebug --no-daemon --stacktrace \
