@@ -15,6 +15,11 @@ android {
         targetSdk = 34
         versionCode = (System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1)
         versionName = System.getenv("VERSION_NAME") ?: "1.0"
+
+        ndk {
+            // libbox.so 只提供这三个 ABI；排除 x86 以减小包体积
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
 
@@ -34,6 +39,12 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
         }
     }
 

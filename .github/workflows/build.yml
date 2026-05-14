@@ -14,6 +14,19 @@ jobs:
       - uses: actions/setup-java@v5
         with: { java-version: "17", distribution: "temurin" }
 
+      - name: Fetch sing-box native libs (libbox.so v1.13.11)
+        run: |
+          BASE="https://github.com/sagernet/sing-box/releases/download/v1.13.11"
+          for ABI in arm64-v8a armeabi-v7a x86_64; do
+            APK="SFA-1.13.11-${ABI}.apk"
+            curl -fsSL -o "/tmp/${APK}" "${BASE}/${APK}"
+            mkdir -p "app/src/main/jniLibs/${ABI}"
+            unzip -o "/tmp/${APK}" "lib/${ABI}/libbox.so" -d /tmp/lbtmp
+            cp "/tmp/lbtmp/lib/${ABI}/libbox.so" "app/src/main/jniLibs/${ABI}/libbox.so"
+            rm -rf /tmp/lbtmp "/tmp/${APK}"
+            echo "libbox.so -> jniLibs/${ABI}/"
+          done
+
       - name: Set version info
         run: |
           echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
