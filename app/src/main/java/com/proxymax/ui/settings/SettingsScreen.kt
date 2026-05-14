@@ -1,12 +1,6 @@
 package com.proxymax.ui.settings
 
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.ui.Modifier
-import com.proxymax.data.model.PerAppMode
-
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,187 +12,290 @@ import androidx.compose.ui.*
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.proxymax.core.CoreType
+import com.proxymax.data.model.PerAppMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    vm: SettingsViewModel = hiltViewModel(),
-    onNavigatePerApp: () -> Unit = {}
+    vm:               SettingsViewModel = hiltViewModel(),
+    onNavigatePerApp: () -> Unit
 ) {
     val ui by vm.ui.collectAsState()
-    val scroll = rememberScrollState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("设置") }) }
+        topBar = {
+            TopAppBar(
+                title  = { Text("设置", style = MaterialTheme.typography.titleMedium) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             Modifier
                 .padding(padding)
-                .verticalScroll(scroll)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // ── 核心设置 ────────────────────────────────────────────────────
+            SettingsSectionHeader("内核")
 
-            // ── 内核 ─────────────────────────────────────────────────
-            SectionTitle("内核设置")
-            SwitchItem("自动选择内核", ui.autoSelectCore, vm::toggleAutoSelectCore,
-                       "根据配置格式自动推荐最合适的内核")
+            SettingsToggleRow(
+                title    = "自动选择内核",
+                subtitle = "根据配置格式自动推断最优内核",
+                checked  = ui.autoSelectCore,
+                onToggle = vm::toggleAutoSelectCore
+            )
+
             if (!ui.autoSelectCore) {
-                SegmentedItem("默认内核", CoreType.entries.map { it.displayName },
-                    selected = ui.defaultCore.ordinal,
-                    onSelect = { vm.setDefaultCore(CoreType.entries[it]) })
-            }
-
-            // ── DNS ──────────────────────────────────────────────────
-            SectionTitle("DNS 设置")
-            SwitchItem("FakeIP 模式", ui.enableFakeIp, vm::toggleFakeIp,
-                       "开启后 DNS 流量由内核接管，防止 DNS 泄漏")
-            SwitchItem("IPv6 支持", ui.enableIpv6, vm::toggleIpv6,
-                       "开启后同时监听 IPv6 地址")
-
-            // ── 端口 ─────────────────────────────────────────────────
-            SectionTitle("本地端口")
-            NumberItem("混合代理端口", ui.mixedPort, onConfirm = vm::setMixedPort)
-            NumberItem("API 端口", ui.apiPort, onConfirm = vm::setApiPort)
-
-            // ── 分流规则 ────────────────────────────────────────────
-            SectionTitle("分流规则微调")
-            SwitchItem(
-                title    = "国内直连（geosite:cn / geoip:cn）",
-                checked  = ui.geositeCnDirect,
-                onToggle = vm::toggleGeositeCnDirect,
-                desc     = "开启后国内域名/IP 直连，不走代理"
-            )
-            SwitchItem(
-                title    = "局域网直连（geoip:private）",
-                checked  = ui.geoipPrivateDirect,
-                onToggle = vm::toggleGeoipPrivateDirect,
-                desc     = "开启后局域网 IP 直连，不走代理"
-            )
-
-            // ── 应用分流 ────────────────────────────────────────────
-            SectionTitle("应用分流")
-            ListItem(
-                headlineContent   = { Text("应用分流设置") },
-                supportingContent = {
-                    val modeText = when (ui.perAppMode) {
-                        PerAppMode.GLOBAL    -> "全局代理"
-                        PerAppMode.WHITELIST -> "白名单模式"
-                        PerAppMode.BLACKLIST -> "黑名单模式"
-                    }
-                    Text("当前：$modeText")
-                },
-                trailingContent = { Icon(Icons.Default.ChevronRight, null) },
-                modifier = Modifier.clickable { onNavigatePerApp() }
-            )
-
-            // ── 系统 ─────────────────────────────────────────────────
-            SectionTitle("系统")
-            DropdownItem("日志级别",
-                options  = listOf("debug", "info", "warning", "error"),
-                selected = ui.logLevel,
-                onSelect = vm::setLogLevel)
-            SwitchItem("开机自启", ui.startOnBoot, vm::toggleStartOnBoot,
-                       "开机后自动恢复上次连接状态")
-        }
-    }
-}
-
-// ── 通用控件 ──────────────────────────────────────────────────────────────
-
-@Composable
-fun SectionTitle(title: String) {
-    Spacer(Modifier.height(8.dp))
-    Text(
-        title,
-        style    = MaterialTheme.typography.labelMedium,
-        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
-    )
-}
-
-@Composable
-fun SwitchItem(title: String, checked: Boolean, onToggle: () -> Unit, desc: String = "") {
-    ListItem(
-        headlineContent   = { Text(title) },
-        supportingContent = if (desc.isNotEmpty()) ({ Text(desc, style = MaterialTheme.typography.bodySmall) }) else null,
-        trailingContent   = { Switch(checked = checked, onCheckedChange = { onToggle() }) }
-    )
-}
-
-@Composable
-fun SegmentedItem(label: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Column(Modifier.padding(vertical = 4.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall,
-             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(4.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            options.forEachIndexed { i, opt ->
-                SegmentedButton(
-                    shape    = SegmentedButtonDefaults.itemShape(i, options.size),
-                    selected = i == selected,
-                    onClick  = { onSelect(i) },
-                    label    = { Text(opt) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun NumberItem(label: String, value: Int, onConfirm: (Int) -> Unit) {
-    var editing by remember { mutableStateOf(false) }
-    var text    by remember(value) { mutableStateOf(value.toString()) }
-
-    ListItem(
-        headlineContent = { Text(label) },
-        trailingContent = {
-            if (editing) {
-                OutlinedTextField(
-                    value         = text,
-                    onValueChange = { text = it },
-                    singleLine    = true,
-                    modifier      = Modifier.width(100.dp),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            text.toIntOrNull()?.let { onConfirm(it) }
-                            editing = false
-                        }) { Icon(Icons.Default.Check, null) }
-                    }
-                )
-            } else {
-                TextButton(onClick = { editing = true }) { Text("$value") }
-            }
-        }
-    )
-}
-
-@Composable
-fun DropdownItem(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    ListItem(
-        headlineContent = { Text(label) },
-        trailingContent = {
-            Box {
-                TextButton(onClick = { expanded = true }) {
-                    Text(selected)
-                    Icon(Icons.Default.ArrowDropDown, null)
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    options.forEach { opt ->
-                        DropdownMenuItem(
-                            text    = { Text(opt) },
-                            onClick = { onSelect(opt); expanded = false },
-                            leadingIcon = if (opt == selected) ({
-                                Icon(Icons.Default.Check, null)
-                            }) else null
+                SettingsSectionHeader("默认内核", small = true)
+                Row(
+                    Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CoreType.entries.forEach { core ->
+                        FilterChip(
+                            selected = ui.defaultCore == core,
+                            onClick  = { vm.setDefaultCore(core) },
+                            label    = { Text(core.displayName, style = MaterialTheme.typography.labelMedium) }
                         )
                     }
                 }
             }
+
+            // ── 网络设置 ────────────────────────────────────────────────────
+            SettingsSectionHeader("网络")
+
+            SettingsToggleRow(
+                title    = "FakeIP",
+                subtitle = "通过虚假 IP 提升 DNS 性能",
+                checked  = ui.enableFakeIp,
+                onToggle = vm::toggleFakeIp
+            )
+            SettingsToggleRow(
+                title    = "IPv6",
+                subtitle = "启用 IPv6 隧道流量",
+                checked  = ui.enableIpv6,
+                onToggle = vm::toggleIpv6
+            )
+
+            var portDialog by remember { mutableStateOf<String?>(null) }
+
+            SettingsClickRow(
+                title    = "混合代理端口",
+                subtitle = "${ui.mixedPort}",
+                onClick  = { portDialog = "mixed" }
+            )
+            SettingsClickRow(
+                title    = "API 端口",
+                subtitle = "${ui.apiPort}",
+                onClick  = { portDialog = "api" }
+            )
+
+            portDialog?.let { key ->
+                val current = if (key == "mixed") ui.mixedPort else ui.apiPort
+                PortInputDialog(
+                    label    = if (key == "mixed") "混合代理端口" else "API 端口",
+                    current  = current,
+                    onConfirm = { p ->
+                        if (key == "mixed") vm.setMixedPort(p) else vm.setApiPort(p)
+                        portDialog = null
+                    },
+                    onDismiss = { portDialog = null }
+                )
+            }
+
+            // ── 分流规则 ───────────────────────────────────────────────────
+            SettingsSectionHeader("分流规则")
+
+            SettingsToggleRow(
+                title    = "国内直连（geosite:cn）",
+                subtitle = "中国大陆域名直接连接",
+                checked  = ui.geositeCnDirect,
+                onToggle = vm::toggleGeositeCnDirect
+            )
+            SettingsToggleRow(
+                title    = "私有地址直连",
+                subtitle = "局域网 / 回环地址不走代理",
+                checked  = ui.geoipPrivateDirect,
+                onToggle = vm::toggleGeoipPrivateDirect
+            )
+
+            // ── 应用分流 ───────────────────────────────────────────────────
+            SettingsSectionHeader("应用分流")
+
+            val modeLabels = mapOf(
+                PerAppMode.GLOBAL    to "全局",
+                PerAppMode.WHITELIST to "白名单",
+                PerAppMode.BLACKLIST to "黑名单"
+            )
+            Row(
+                Modifier.padding(start = 4.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PerAppMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = ui.perAppMode == mode,
+                        onClick  = { vm.setPerAppMode(mode) },
+                        label    = { Text(modeLabels[mode] ?: mode.name, style = MaterialTheme.typography.labelMedium) }
+                    )
+                }
+            }
+
+            if (ui.perAppMode != PerAppMode.GLOBAL) {
+                SettingsClickRow(
+                    title    = "选择应用",
+                    subtitle = if (ui.perAppMode == PerAppMode.WHITELIST) "选中的应用走代理" else "选中的应用不走代理",
+                    onClick  = onNavigatePerApp,
+                    trailingIcon = Icons.Default.ChevronRight
+                )
+            }
+
+            // ── 其他 ───────────────────────────────────────────────────────
+            SettingsSectionHeader("其他")
+
+            SettingsToggleRow(
+                title    = "开机自启",
+                subtitle = "设备启动时自动连接代理",
+                checked  = ui.startOnBoot,
+                onToggle = vm::toggleStartOnBoot
+            )
+
+            val levels = listOf("debug","info","warning","error","silent")
+            var logExpanded by remember { mutableStateOf(false) }
+            SettingsClickRow(
+                title    = "日志级别",
+                subtitle = ui.logLevel,
+                onClick  = { logExpanded = true }
+            )
+            DropdownMenu(
+                expanded        = logExpanded,
+                onDismissRequest = { logExpanded = false },
+                modifier        = Modifier.padding(horizontal = 16.dp)
+            ) {
+                levels.forEach { level ->
+                    DropdownMenuItem(
+                        text    = { Text(level, style = MaterialTheme.typography.bodyMedium) },
+                        onClick = { vm.setLogLevel(level); logExpanded = false },
+                        trailingIcon = if (ui.logLevel == level) ({
+                            Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                        }) else null
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+// ── 通用组件 ────────────────────────────────────────────────────────────────
+@Composable
+fun SettingsSectionHeader(text: String, small: Boolean = false) {
+    Text(
+        text     = text,
+        style    = if (small) MaterialTheme.typography.labelSmall
+                   else MaterialTheme.typography.labelMedium,
+        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
+fun SettingsToggleRow(
+    title:    String,
+    subtitle: String,
+    checked:  Boolean,
+    onToggle: () -> Unit
+) {
+    Surface(
+        shape          = MaterialTheme.shapes.medium,
+        color          = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier       = Modifier.fillMaxWidth().clickable { onToggle() }
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = checked, onCheckedChange = { onToggle() },
+                   modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun SettingsClickRow(
+    title:         String,
+    subtitle:      String,
+    onClick:       () -> Unit,
+    trailingIcon:  androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Edit
+) {
+    Surface(
+        shape          = MaterialTheme.shapes.medium,
+        color          = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier       = Modifier.fillMaxWidth().clickable { onClick() }
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(trailingIcon, null,
+                 Modifier.size(18.dp),
+                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun PortInputDialog(
+    label:     String,
+    current:   Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var input by remember { mutableStateOf(current.toString()) }
+    val valid  = input.toIntOrNull()?.let { it in 1..65535 } == true
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text(label, style = MaterialTheme.typography.titleSmall) },
+        text    = {
+            OutlinedTextField(
+                value            = input,
+                onValueChange    = { input = it.filter { c -> c.isDigit() } },
+                singleLine       = true,
+                isError          = !valid,
+                supportingText   = { if (!valid) Text("请输入 1–65535 之间的端口") },
+                keyboardOptions  = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick  = { input.toIntOrNull()?.let { onConfirm(it) } },
+                enabled  = valid
+            ) { Text("确定") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
     )
 }

@@ -37,9 +37,7 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("ProxyMax", style = MaterialTheme.typography.titleMedium)
-                },
+                title = { Text("ProxyMax", style = MaterialTheme.typography.titleMedium) },
                 actions = {
                     if (state is CoreState.Running) {
                         val core = (state as CoreState.Running).core
@@ -70,8 +68,8 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
 
             AnimatedVisibility(visible = state is CoreState.Running) {
                 if (state is CoreState.Running) {
-                    val stats = liveStats
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // 实时速率图
                         Surface(
                             shape          = MaterialTheme.shapes.medium,
                             color          = MaterialTheme.colorScheme.surface,
@@ -85,9 +83,10 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(10.dp))
-                                SpeedChart(stats = stats, modifier = Modifier.fillMaxWidth())
+                                SpeedChart(stats = liveStats, modifier = Modifier.fillMaxWidth())
                             }
                         }
+                        // 流量统计
                         Surface(
                             shape          = MaterialTheme.shapes.medium,
                             color          = MaterialTheme.colorScheme.surface,
@@ -101,17 +100,18 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment     = Alignment.CenterVertically
                             ) {
-                                StatItem("上传",  stats.totalUpload.toSpeedStr().replace("/s",""))
+                                StatItem("上传",  liveStats.totalUpload.toSpeedStr().replace("/s",""))
                                 StatDivider()
-                                StatItem("下载",  stats.totalDownload.toSpeedStr().replace("/s",""))
+                                StatItem("下载",  liveStats.totalDownload.toSpeedStr().replace("/s",""))
                                 StatDivider()
-                                StatItem("连接",  "${stats.connections}")
+                                StatItem("连接",  "${liveStats.connections}")
                             }
                         }
                     }
                 }
             }
 
+            // 错误卡片
             if (state is CoreState.Error) {
                 val err = state as CoreState.Error
                 Surface(
@@ -158,10 +158,12 @@ fun ConnectCard(state: CoreState, onToggle: () -> Unit, onSwitch: (CoreType) -> 
             Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 状态行
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier          = Modifier.fillMaxWidth()
             ) {
+                // 状态指示点
                 Box(
                     Modifier
                         .size(8.dp)
@@ -197,6 +199,7 @@ fun ConnectCard(state: CoreState, onToggle: () -> Unit, onSwitch: (CoreType) -> 
                         )
                     }
                 }
+                // 主按钮
                 if (isBusy) {
                     CircularProgressIndicator(
                         Modifier.size(44.dp),
@@ -229,6 +232,7 @@ fun ConnectCard(state: CoreState, onToggle: () -> Unit, onSwitch: (CoreType) -> 
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
+            // 内核切换
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "内核",

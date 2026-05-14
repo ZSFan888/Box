@@ -51,6 +51,7 @@ fun ProxyMaxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content:   @Composable () -> Unit
 ) {
+    // 关闭 Dynamic Color，保持品牌色一致
     val colorScheme = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
         colorScheme = colorScheme,
