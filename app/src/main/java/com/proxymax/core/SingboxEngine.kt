@@ -4,6 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Singleton
@@ -47,11 +50,11 @@ class SingboxEngine @Inject constructor() : CoreEngine {
 
     override suspend fun testDelay(proxyName: String, url: String, timeoutMs: Int): Int {
         return runCatching {
-            val client = okhttp3.OkHttpClient.Builder()
+            val client = OkHttpClient.Builder()
                 .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
                 .build()
             val apiUrl = "http://127.0.0.1:9090/proxies/${java.net.URLEncoder.encode(proxyName, "UTF-8")}/delay?timeout=${timeoutMs}&url=${java.net.URLEncoder.encode(url, "UTF-8")}"
-            val req = okhttp3.Request.Builder().url(apiUrl).get().build()
+            val req = Request.Builder().url(apiUrl).get().build()
             val t0 = System.currentTimeMillis()
             client.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) (System.currentTimeMillis() - t0).toInt() else -1

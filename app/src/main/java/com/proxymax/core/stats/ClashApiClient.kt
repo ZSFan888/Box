@@ -3,8 +3,11 @@ package com.proxymax.core.stats
 import com.google.gson.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.channels.awaitClose
 import okhttp3.*
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
