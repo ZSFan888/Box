@@ -22,7 +22,18 @@ class CoreManager @Inject constructor(
     private val _state = MutableStateFlow<CoreState>(CoreState.Idle)
     val state: StateFlow<CoreState> = _state.asStateFlow()
 
-    private fun engineFor(type: CoreType): CoreEngine = when (type) {
+    // sing-box PlatformInterface（由 ProxyVpnService 在建立 TUN 后注入）
+    private var singboxPlatformInterface: Any? = null
+
+    fun setPlatformInterface(iface: Any) {
+        singboxPlatformInterface = iface
+        // 注入到 SingboxEngine（如果已有 libbox 则立即传递）
+        if (singboxEngine is SingboxEngine) {
+            singboxEngine.platformInterface = iface
+        }
+    }
+
+        private fun engineFor(type: CoreType): CoreEngine = when (type) {
         CoreType.MIHOMO  -> mihomoEngine
         CoreType.XRAY    -> xrayEngine
         CoreType.SINGBOX -> singboxEngine

@@ -30,7 +30,11 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     private val _stats = MutableStateFlow(TrafficStats())
     private val _logs  = MutableSharedFlow<String>(replay = 200, extraBufferCapacity = 500)
 
-    private val _available: Boolean by lazy {
+    // 由 ProxyVpnService 通过 CoreManager.setPlatformInterface() 注入
+    // 类型为 io.nekohasekai.libbox.PlatformInterface（编译时可用后可强类型化）
+    var platformInterface: Any? = null
+
+        private val _available: Boolean by lazy {
         runCatching {
             Libbox.version()   // 调用任意 Libbox 静态方法验证 .so 已加载
             true
