@@ -23,13 +23,16 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     private external fun nativeVersion(): String
     private external fun nativeSetLogCallback(cb: (String) -> Unit)
 
-    override fun isAvailable() = runCatching {
-        System.loadLibrary("singbox"); true
-    }.getOrDefault(false)
+    private val _available: Boolean by lazy {
+        runCatching { System.loadLibrary("singbox"); true }.getOrDefault(false)
+    }
+    override fun isAvailable() = _available
 
     override fun version() = runCatching { nativeVersion() }.getOrDefault("N/A")
 
     override suspend fun start(config: String, tunFd: Int): Result<Unit> = runCatching {
+        if (!isAvailable()) throw RuntimeException("libsingbox.so not available on this device")
+        if (tunFd < 0) throw RuntimeException("Invalid TUN fd: $tunFd (VPN permission not granted?)")
         _logs.tryEmit("[sing-box] Starting core...")
         nativeSetLogCallback { line -> _logs.tryEmit(line) }
         val ret = nativeStart(config, tunFd)

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ProxyMax" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Compose 应用只需要一个无 ActionBar 的基础主题 -->
+    <style name="Theme.ProxyMax" parent="android:Theme.Material.Light.NoTitleBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

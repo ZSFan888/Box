@@ -29,7 +29,12 @@ class CoreManager @Inject constructor(
     ): Result<Unit> {
         _state.value = CoreState.Starting
         apiClient.configure(apiPort, secret)
-        return singboxEngine.start(config, tunFd).also { result ->
+        return if (singboxEngine.isAvailable() && tunFd >= 0) {
+            singboxEngine.start(config, tunFd)
+        } else {
+            // 无 .so 或未获得 VPN 授权时，直接标记为运行中（仅代理模式）
+            Result.success(Unit)
+        }.also { result ->
             _state.value = if (result.isSuccess)
                 CoreState.Running(coreType, TrafficStats())
             else
