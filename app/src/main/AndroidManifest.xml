@@ -80,7 +80,8 @@
         <!-- ── 桌面小组件 ─────────────────────────────────────────── -->
         <receiver
             android:name="com.proxymax.ui.widget.ProxyWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="Box Widget">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
