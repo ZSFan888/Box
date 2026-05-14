@@ -2,89 +2,114 @@ package com.proxymax.ui.widget
 
 import android.content.Context
 import android.content.Intent
-import androidx.glance.*
-import androidx.glance.action.*
-import androidx.glance.appwidget.*
-import androidx.glance.appwidget.action.actionStartService
-import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.layout.*
-import androidx.glance.text.*
-import androidx.glance.unit.ColorProvider
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.*
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.provideContent
+import androidx.glance.layout.*
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.proxymax.service.ProxyVpnService
 
 class ProxyWidget : GlanceAppWidget() {
 
+    companion object {
+        val KEY_CONNECTED = booleanPreferencesKey("connected")
+        val KEY_UP_SPEED  = stringPreferencesKey("up_speed")
+        val KEY_DN_SPEED  = stringPreferencesKey("dn_speed")
+    }
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent {
-            val prefs      = currentState<androidx.datastore.preferences.core.Preferences>()
-            val isRunning  = prefs[booleanPreferencesKey("widget_running")] ?: false
-            val coreName   = prefs[stringPreferencesKey("widget_core")]     ?: "ProxyMax"
-            val upSpeed    = prefs[stringPreferencesKey("widget_up")]       ?: "0 B/s"
-            val downSpeed  = prefs[stringPreferencesKey("widget_down")]     ?: "0 B/s"
+        provideContent { WidgetContent() }
+    }
+}
 
-            val bgColor   = if (isRunning) Color(0xFF006874) else Color(0xFF2C2C2C)
-            val textColor = ColorProvider(Color.White)
-            val toggleAction = actionStartService(
-                Intent(context, ProxyVpnService::class.java).apply {
-                    action = if (isRunning) ProxyVpnService.ACTION_STOP
-                             else          ProxyVpnService.ACTION_START
-                }
-            )
+@Composable
+private fun WidgetContent() {
+    val prefs     = currentState<androidx.datastore.preferences.core.Preferences>()
+    val connected = prefs[ProxyWidget.KEY_CONNECTED] ?: false
+    val upSpeed   = prefs[ProxyWidget.KEY_UP_SPEED]  ?: "0 KB/s"
+    val dnSpeed   = prefs[ProxyWidget.KEY_DN_SPEED]  ?: "0 KB/s"
 
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(bgColor)
-                    .cornerRadius(16.dp)
-                    .padding(12.dp)
-                    .clickable(toggleAction)
-            ) {
-                Column(verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = GlanceModifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text     = if (isRunning) "● $coreName" else "○ 未连接",
-                            style    = TextStyle(
-                                color      = textColor,
-                                fontSize   = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = GlanceModifier.defaultWeight()
+    val bgColor   = if (connected) Color(0xFF1A2B2B) else Color(0xFF1E1E1E)
+    val dotColor  = if (connected) Color(0xFF7AAA88) else Color(0xFF7C8798)
+    val labelText = if (connected) "已连接" else "未连接"
+
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(ColorProvider(bgColor))
+            .padding(12.dp)
+            .clickable(actionRunCallback<ToggleProxyAction>()),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Column(verticalAlignment = Alignment.Vertical.CenterVertically) {
+            Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+                Box(
+                    modifier = GlanceModifier
+                        .size(8.dp)
+                        .background(ColorProvider(dotColor))
+                )
+                Spacer(GlanceModifier.width(6.dp))
+                Text(
+                    text  = labelText,
+                    style = TextStyle(
+                        color      = ColorProvider(Color.White),
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+            if (connected) {
+                Spacer(GlanceModifier.height(6.dp))
+                Row {
+                    Text(
+                        text  = "↑ $upSpeed",
+                        style = TextStyle(
+                            color    = ColorProvider(Color(0xFFB8BCC8)),
+                            fontSize = 11.sp
                         )
-                        Text(
-                            text  = if (isRunning) "断开" else "连接",
-                            style = TextStyle(color = textColor, fontSize = 12.sp)
+                    )
+                    Spacer(GlanceModifier.width(10.dp))
+                    Text(
+                        text  = "↓ $dnSpeed",
+                        style = TextStyle(
+                            color    = ColorProvider(Color(0xFFB8BCC8)),
+                            fontSize = 11.sp
                         )
-                    }
-
-                    if (isRunning) {
-                        Spacer(GlanceModifier.height(6.dp))
-                        Row(modifier = GlanceModifier.fillMaxWidth()) {
-                            Text(
-                                "↑ $upSpeed",
-                                style    = TextStyle(color = ColorProvider(Color(0xFF80D8FF)), fontSize = 11.sp),
-                                modifier = GlanceModifier.defaultWeight()
-                            )
-                            Text(
-                                "↓ $downSpeed",
-                                style = TextStyle(color = ColorProvider(Color(0xFF69F0AE)), fontSize = 11.sp)
-                            )
-                        }
-                    }
+                    )
                 }
             }
         }
     }
 }
 
+class ToggleProxyAction : ActionCallback {
+    override suspend fun onAction(
+        context:    Context,
+        glanceId:   GlanceId,
+        parameters: ActionParameters
+    ) {
+        val prefs    = getAppWidgetState<androidx.datastore.preferences.core.Preferences>(context, glanceId)
+        val isOn     = prefs[ProxyWidget.KEY_CONNECTED] ?: false
+        val action   = if (isOn) ProxyVpnService.ACTION_STOP else ProxyVpnService.ACTION_START
+        context.startForegroundService(Intent(context, ProxyVpnService::class.java).apply {
+            this.action = action
+        })
+    }
+}
+
 class ProxyWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget = ProxyWidget()
+    override val glanceAppWidget: GlanceAppWidget = ProxyWidget()
 }
