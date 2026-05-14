@@ -408,8 +408,9 @@ object ConfigConverter {
             })
         })
         add("rules", JsonArray().apply {
+            // geosite removed in sing-box 1.12 → use rule_set
             add(JsonObject().apply {
-                addProperty("geosite",  "cn")
+                add("rule_set", JsonArray().apply { add("geosite-cn") })
                 addProperty("server",   "cn-dns")
             })
         })
@@ -423,15 +424,45 @@ object ConfigConverter {
     }
 
     private fun buildSingboxRoute(): JsonObject = JsonObject().apply {
+        add("rule_set", JsonArray().apply {
+            // geoip-cn
+            add(JsonObject().apply {
+                addProperty("type",          "remote")
+                addProperty("tag",           "geoip-cn")
+                addProperty("format",        "binary")
+                addProperty("url",           "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs")
+                addProperty("download_detour","direct")
+            })
+            // geosite-cn
+            add(JsonObject().apply {
+                addProperty("type",          "remote")
+                addProperty("tag",           "geosite-cn")
+                addProperty("format",        "binary")
+                addProperty("url",           "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs")
+                addProperty("download_detour","direct")
+            })
+            // geoip-private
+            add(JsonObject().apply {
+                addProperty("type",          "remote")
+                addProperty("tag",           "geoip-private")
+                addProperty("format",        "binary")
+                addProperty("url",           "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-private.srs")
+                addProperty("download_detour","direct")
+            })
+        })
         add("rules", JsonArray().apply {
-            // DNS sniff → resolve via sing-box DNS (replaces deprecated dns outbound)
             add(JsonObject().apply {
                 addProperty("protocol", "dns")
                 addProperty("action",   "hijack-dns")
             })
-            add(JsonObject().apply { addProperty("geosite",  "cn");      addProperty("outbound", "direct") })
-            add(JsonObject().apply { addProperty("geoip",    "cn");      addProperty("outbound", "direct") })
-            add(JsonObject().apply { addProperty("geoip",    "private"); addProperty("outbound", "direct") })
+            add(JsonObject().apply {
+                add("rule_set",         JsonArray().apply { add("geoip-private") })
+                addProperty("outbound", "direct")
+            })
+            add(JsonObject().apply {
+                add("rule_set", JsonArray().apply { add("geosite-cn"); add("geoip-cn") })
+                addProperty("outbound", "direct")
+            })
         })
         addProperty("final",                "proxy")
         addProperty("auto_detect_interface", true)
