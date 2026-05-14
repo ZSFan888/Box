@@ -71,11 +71,11 @@ class ProfileRepository @Inject constructor(
             profileWithId
         }
 
-    /** 设为激活配置（同时自动激活首个配置） */
+    /** 设为激活配置：先查目标记录，再清除其他，最后激活目标 */
     suspend fun setActiveProfile(profileId: Int) = withContext(Dispatchers.IO) {
-        profileDao.clearActiveProfiles()
         val profiles = profileDao.getAllProfiles().first()
         val target = profiles.find { it.id == profileId } ?: return@withContext
+        profileDao.clearActiveProfiles()
         profileDao.updateProfile(target.copy(isActive = true))
     }
 
