@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.proxymax.core.CoreType
@@ -48,19 +49,21 @@ fun SettingsScreen(
                 onToggle = vm::toggleAutoSelectCore
             )
 
-            if (!ui.autoSelectCore) {
-                SettingsSectionHeader("默认内核", small = true)
-                Row(
-                    Modifier.padding(start = 4.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CoreType.entries.forEach { core ->
-                        FilterChip(
-                            selected = ui.defaultCore == core,
-                            onClick  = { vm.setDefaultCore(core) },
-                            label    = { Text(core.displayName, style = MaterialTheme.typography.labelMedium) }
-                        )
-                    }
+            // 内核选择器始终可见；autoSelectCore=true 时置灰提示用户可手动覆盖
+            SettingsSectionHeader("默认内核", small = true)
+            Row(
+                Modifier
+                    .padding(start = 4.dp, bottom = 4.dp)
+                    .then(if (ui.autoSelectCore) Modifier.alpha(0.4f) else Modifier),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CoreType.entries.forEach { core ->
+                    FilterChip(
+                        selected = ui.defaultCore == core,
+                        onClick  = { vm.setDefaultCore(core) },
+                        enabled  = !ui.autoSelectCore,
+                        label    = { Text(core.displayName, style = MaterialTheme.typography.labelMedium) }
+                    )
                 }
             }
 
