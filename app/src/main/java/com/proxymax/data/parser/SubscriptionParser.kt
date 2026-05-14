@@ -105,7 +105,7 @@ object SubscriptionParser {
             val colonIdx = clean.indexOf(':')
             if (colonIdx < 0) continue
             val key = clean.substring(0, colonIdx).trim()
-            val value = clean.substring(colonIdx + 1).trim().removeSurrounding(""").removeSurrounding("'")
+            val value = clean.substring(colonIdx + 1).trim().trim('"').trim('\'')
             if (key.isNotEmpty() && value.isNotEmpty()) map[key] = value
         }
         return map
