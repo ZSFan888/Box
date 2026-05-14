@@ -39,6 +39,14 @@ class LogsViewModel @Inject constructor(coreManager: CoreManager) : ViewModel() 
     fun clear() = _logs.update { emptyList() }
 }
 
+// ── 日志区配色（与 MaterialTheme 表面色协调，使用柔和色调） ────────────────
+private val LogBg          = Color(0xFF181A1F)   // 偏暖深灰，不纯黑
+private val LogTextDefault = Color(0xFFB8BCC8)   // 主文字：中灰偏蓝，不刺眼
+private val LogTextError   = Color(0xFFCC7A7A)   // 错误：降饱和玫瑰红
+private val LogTextWarn    = Color(0xFFB89A6A)   // 警告：降饱和琥珀
+private val LogTextDebug   = Color(0xFF7A8AAA)   // 调试：蓝灰，明显退后
+private val LogTextSuccess = Color(0xFF7AAA88)   // 成功：降饱和绿
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogsScreen(vm: LogsViewModel = hiltViewModel()) {
@@ -60,42 +68,82 @@ fun LogsScreen(vm: LogsViewModel = hiltViewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("实时日志") },
+                title  = { Text("实时日志", style = MaterialTheme.typography.titleMedium) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 actions = {
                     IconToggleButton(checked = autoScroll, onCheckedChange = { autoScroll = it }) {
-                        Icon(if (autoScroll) Icons.Default.ArrowDownward else Icons.Default.PauseCircle,
-                             if (autoScroll) "自动滚动开" else "自动滚动关")
+                        Icon(
+                            imageVector = if (autoScroll) Icons.Default.ArrowDownward
+                                          else Icons.Default.PauseCircle,
+                            contentDescription = if (autoScroll) "自动滚动开" else "自动滚动关",
+                            tint = if (autoScroll) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    IconButton(onClick = vm::clear) { Icon(Icons.Default.DeleteSweep, "清除") }
+                    IconButton(onClick = vm::clear) {
+                        Icon(Icons.Default.DeleteSweep, "清除",
+                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            // 过滤输入框
             OutlinedTextField(
-                value = filter, onValueChange = { filter = it },
-                placeholder = { Text("关键词过滤…") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine  = true,
-                modifier    = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+                value         = filter,
+                onValueChange = { filter = it },
+                placeholder   = { Text("关键词过滤…",
+                    style = MaterialTheme.typography.bodySmall) },
+                leadingIcon   = {
+                    Icon(Icons.Default.Search, null,
+                         Modifier.size(18.dp),
+                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                singleLine    = true,
+                textStyle     = MaterialTheme.typography.bodySmall,
+                modifier      = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
+            // 日志列表
             SelectionContainer {
                 LazyColumn(
-                    state   = state,
-                    modifier = Modifier.fillMaxSize()
-                        .background(Color(0xFF1E1E2E))
-                        .padding(horizontal = 12.dp)
+                    state    = state,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(LogBg)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    items(filtered) { line ->
+                    items(filtered, key = { it.hashCode().toString() + filtered.indexOf(it) }) { line ->
                         Text(
                             text       = line,
                             color      = logLineColor(line),
                             fontSize   = 11.sp,
                             fontFamily = FontFamily.Monospace,
-                            lineHeight = 16.sp,
-                            modifier   = Modifier.padding(vertical = 1.dp)
+                            lineHeight = 17.sp,
+                            modifier   = Modifier.padding(vertical = 1.5.dp)
                         )
+                    }
+
+                    if (filtered.isEmpty()) {
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text  = if (filter.isBlank()) "暂无日志" else "无匹配结果",
+                                    color = LogTextDebug,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -104,11 +152,19 @@ fun LogsScreen(vm: LogsViewModel = hiltViewModel()) {
 }
 
 fun logLineColor(line: String): Color = when {
+    line.contains("[ERR]",   ignoreCase = true) ||
     line.contains("[ERROR]", ignoreCase = true) ||
-    line.contains("error",   ignoreCase = true) -> Color(0xFFFF5555)
+    line.contains("error",   ignoreCase = true)   -> LogTextError
+
     line.contains("[WARN]",  ignoreCase = true) ||
-    line.contains("warning", ignoreCase = true) -> Color(0xFFFFB86C)
-    line.contains("[DEBUG]", ignoreCase = true) -> Color(0xFF6272A4)
-    line.contains("✓") || line.contains("started") -> Color(0xFF50FA7B)
-    else -> Color(0xFFF8F8F2)
+    line.contains("warning", ignoreCase = true)   -> LogTextWarn
+
+    line.contains("[DEBUG]", ignoreCase = true) ||
+    line.contains("debug",   ignoreCase = true)   -> LogTextDebug
+
+    line.contains("[INFO]",  ignoreCase = true) &&
+    (line.contains("✓") || line.contains("started") ||
+     line.contains("connected"))                  -> LogTextSuccess
+
+    else                                          -> LogTextDefault
 }
