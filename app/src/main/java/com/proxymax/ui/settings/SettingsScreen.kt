@@ -1,5 +1,7 @@
 package com.proxymax.ui.settings
 
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.Modifier
 import com.proxymax.data.model.PerAppMode
 
 import androidx.compose.foundation.clickable
@@ -110,7 +112,7 @@ fun SectionTitle(title: String) {
         style    = MaterialTheme.typography.titleSmall,
         color    = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
-    Divider()
+    HorizontalDivider()
 }
 
 @Composable

@@ -1,5 +1,6 @@
 package com.proxymax.ui.scan
 
+import androidx.compose.ui.Modifier
 import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context

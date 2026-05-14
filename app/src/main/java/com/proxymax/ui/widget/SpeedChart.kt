@@ -1,5 +1,6 @@
 package com.proxymax.ui.widget
 
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme

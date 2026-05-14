@@ -1,5 +1,6 @@
 package com.proxymax.ui.logs
 
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*

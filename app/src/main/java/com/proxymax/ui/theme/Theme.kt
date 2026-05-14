@@ -1,5 +1,6 @@
 package com.proxymax.ui.theme
 
+import androidx.compose.foundation.background
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*

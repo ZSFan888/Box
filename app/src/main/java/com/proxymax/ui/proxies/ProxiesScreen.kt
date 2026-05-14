@@ -1,5 +1,8 @@
 package com.proxymax.ui.proxies
 
+import androidx.compose.foundation.background
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -62,7 +65,7 @@ fun ProxiesScreen(vm: ProxiesViewModel = hiltViewModel()) {
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             // ── 骨架 / 节点列表 ────────────────────────────────────────
             if (ui.isLoading) {

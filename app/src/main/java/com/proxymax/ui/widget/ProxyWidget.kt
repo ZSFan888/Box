@@ -1,5 +1,7 @@
 package com.proxymax.ui.widget
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import android.content.Context
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color

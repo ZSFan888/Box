@@ -1,5 +1,6 @@
 package com.proxymax.ui.perrapp
 
+import androidx.compose.ui.Modifier
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
