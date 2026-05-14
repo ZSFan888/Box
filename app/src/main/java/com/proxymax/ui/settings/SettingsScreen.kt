@@ -108,11 +108,13 @@ fun SettingsScreen(
 
 @Composable
 fun SectionTitle(title: String) {
-    Text(title,
-        style    = MaterialTheme.typography.titleSmall,
-        color    = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
-    HorizontalDivider()
+    Spacer(Modifier.height(8.dp))
+    Text(
+        title,
+        style    = MaterialTheme.typography.labelMedium,
+        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+    )
 }
 
 @Composable

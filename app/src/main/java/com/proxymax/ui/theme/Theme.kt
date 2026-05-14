@@ -1,42 +1,60 @@
 package com.proxymax.ui.theme
 
-import androidx.compose.foundation.background
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary       = md_theme_dark_primary,
-    secondary     = md_theme_dark_secondary,
-    tertiary      = md_theme_dark_tertiary,
-    background    = md_theme_dark_background,
-    surface       = md_theme_dark_surface,
-    onPrimary     = md_theme_dark_onPrimary,
-    onBackground  = md_theme_dark_onBackground,
-    onSurface     = md_theme_dark_onSurface,
+private val LightColors = lightColorScheme(
+    primary            = light_primary,
+    onPrimary          = light_on_primary,
+    primaryContainer   = light_primary_container,
+    onPrimaryContainer = light_on_primary_con,
+    secondary          = light_secondary,
+    onSecondary        = light_on_secondary,
+    background         = light_background,
+    onBackground       = light_on_background,
+    surface            = light_surface,
+    onSurface          = light_on_surface,
+    surfaceVariant     = light_surface_variant,
+    onSurfaceVariant   = light_on_surface_var,
+    error              = light_error,
+    onError            = light_on_error,
+    errorContainer     = light_error_container,
+    onErrorContainer   = light_on_error_con,
+    outline            = light_outline,
+    outlineVariant     = light_outline_variant,
 )
-private val LightColorScheme = lightColorScheme(
-    primary       = md_theme_light_primary,
-    secondary     = md_theme_light_secondary,
-    tertiary      = md_theme_light_tertiary,
-    background    = md_theme_light_background,
-    surface       = md_theme_light_surface,
-    onPrimary     = md_theme_light_onPrimary,
-    onBackground  = md_theme_light_onBackground,
-    onSurface     = md_theme_light_onSurface,
+
+private val DarkColors = darkColorScheme(
+    primary            = dark_primary,
+    onPrimary          = dark_on_primary,
+    primaryContainer   = dark_primary_container,
+    onPrimaryContainer = dark_on_primary_con,
+    secondary          = dark_secondary,
+    onSecondary        = dark_on_secondary,
+    background         = dark_background,
+    onBackground       = dark_on_background,
+    surface            = dark_surface,
+    onSurface          = dark_on_surface,
+    surfaceVariant     = dark_surface_variant,
+    onSurfaceVariant   = dark_on_surface_var,
+    error              = dark_error,
+    onError            = dark_on_error,
+    errorContainer     = dark_error_container,
+    onErrorContainer   = dark_on_error_con,
+    outline            = dark_outline,
+    outlineVariant     = dark_outline_variant,
 )
 
 @Composable
-fun ProxyMaxTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val ctx = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-        }
-        darkTheme -> DarkColorScheme
-        else      -> LightColorScheme
-    }
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+fun ProxyMaxTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content:   @Composable () -> Unit
+) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography  = Typography,
+        content     = content
+    )
 }
