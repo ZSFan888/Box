@@ -98,6 +98,11 @@ class ProxiesViewModel @Inject constructor(
             .onFailure { e -> _ui.update { it.copy(isLoading = false, errorMsg = "更新失败：${e.message}") } }
     }
 
+    /** 扫码导入后刷新订阅列表（profiles 由 Flow 自动更新，此处触发节点重载）*/
+    fun refreshProfiles() = viewModelScope.launch {
+        loadProxies()
+    }
+
     fun clearError() = _ui.update { it.copy(errorMsg = null) }
 
     // ── 节点操作 ──────────────────────────────────────────────────────────

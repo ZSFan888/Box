@@ -26,18 +26,21 @@ jobs:
       - name: Build Release APK
         if: github.ref == 'refs/heads/main'
         env:
-          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # decode keystore from secret (base64)
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
             ./gradlew :app:assembleRelease --no-daemon \
-              -Dorg.gradle.jvmargs="-Xmx1g" 2>&1 | tee /tmp/release_build.log
+              -Dorg.gradle.jvmargs="-Xmx1g -XX:MaxMetaspaceSize=512m" \
+              2>&1 | tee /tmp/release_build.log
+            grep -q "BUILD SUCCESSFUL" /tmp/release_build.log \
+              && echo "✅ Release APK built" \
+              || { echo "❌ Release build failed"; exit 1; }
           else
-            echo "⚠️ KEYSTORE_BASE64 secret not set, skipping release build"
+            echo "⚠️  KEYSTORE_BASE64 not set — skipping release build"
           fi
 
       - name: Upload Release APK

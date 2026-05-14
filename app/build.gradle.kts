@@ -20,10 +20,11 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile   = file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
+            storeFile     = file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias      = System.getenv("KEY_ALIAS") ?: ""
+            keyAlias      = System.getenv("KEY_ALIAS") ?: "box-release"
             keyPassword   = System.getenv("KEY_PASSWORD") ?: ""
+            storeType     = "PKCS12"
         }
     }
     buildTypes {
