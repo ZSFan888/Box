@@ -70,6 +70,11 @@ class ProfileRepository @Inject constructor(
     suspend fun updateLatency(nodeId: String, latency: Int) =
         nodeDao.updateLatency(nodeId, latency)
 
+    /** 更新订阅字段（autoUpdate、name 等） */
+    suspend fun updateProfile(profile: ProxyProfile) = withContext(Dispatchers.IO) {
+        profileDao.updateProfile(profile)
+    }
+
     suspend fun deleteProfile(profile: ProxyProfile) = withContext(Dispatchers.IO) {
         nodeDao.deleteNodesForProfile(profile.id)
         profileDao.deleteProfile(profile)

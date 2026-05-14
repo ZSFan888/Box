@@ -5,10 +5,10 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.proxymax.core.*
+import com.proxymax.core.stats.StatsCollector
 import com.proxymax.data.model.PerAppMode
 import com.proxymax.data.repository.ProfileDao
 import com.proxymax.service.ProxyVpnService
-import com.proxymax.ui.settings.SettingsViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,27 +16,37 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val app:         Application,
-    private val coreManager: CoreManager,
-    private val profileDao:  ProfileDao
+    private val app:           Application,
+    private val coreManager:   CoreManager,
+    private val profileDao:    ProfileDao,
+    private val statsCollector: StatsCollector
 ) : AndroidViewModel(app) {
 
     val state: StateFlow<CoreState> = coreManager.state
+
+    // ── 实时流量（来自 StatsCollector，覆盖 CoreState 里的静态 stats）──────
+    val liveStats: StateFlow<TrafficStats> = statsCollector.stats
 
     private val _noProfileError = MutableStateFlow(false)
     val noProfileError: StateFlow<Boolean> = _noProfileError.asStateFlow()
     fun clearNoProfileError() { _noProfileError.value = false }
 
-    // 代理节点列表（从 Clash API 获取，用于策略组显示）
-    private val _proxies = MutableStateFlow<Map<String, com.proxymax.core.stats.ProxyInfo>>(emptyMap())
-    val proxies: StateFlow<Map<String, com.proxymax.core.stats.ProxyInfo>> = _proxies.asStateFlow()
-
     init {
-        // 运行中时自动拉取节点列表
+        // 核心启动成功后，启动 StatsCollector
         viewModelScope.launch {
-            state.collect { s: CoreState ->
-                if (s is CoreState.Running) {
-                    _proxies.value = coreManager.getProxies()
+            state.collect { s ->
+                when (s) {
+                    is CoreState.Running -> {
+                        statsCollector.start(
+                            scope    = viewModelScope,
+                            apiPort  = 9090,
+                            secret   = "",
+                            logLevel = "info"
+                        )
+                    }
+                    is CoreState.Stopped,
+                    is CoreState.Error -> statsCollector.stop()
+                    else -> {}
                 }
             }
         }
@@ -58,16 +68,16 @@ class DashboardViewModel @Inject constructor(
         val core = coreManager.recommendCore(profile.rawConfig)
         val intent = Intent(app, ProxyVpnService::class.java).apply {
             action = ProxyVpnService.ACTION_START
-            putExtra(ProxyVpnService.EXTRA_CORE,     core.name)
-            putExtra(ProxyVpnService.EXTRA_CONFIG,   profile.rawConfig)
-            putExtra(ProxyVpnService.EXTRA_API_PORT, 9090)
-            // PerApp 模式从 DataStore 读（此处默认全局）
+            putExtra(ProxyVpnService.EXTRA_CORE,         core.name)
+            putExtra(ProxyVpnService.EXTRA_CONFIG,       profile.rawConfig)
+            putExtra(ProxyVpnService.EXTRA_API_PORT,     9090)
             putExtra(ProxyVpnService.EXTRA_PER_APP_MODE, PerAppMode.GLOBAL.name)
         }
         app.startForegroundService(intent)
     }
 
     fun stopVpn() {
+        statsCollector.stop()
         app.startService(
             Intent(app, ProxyVpnService::class.java).setAction(ProxyVpnService.ACTION_STOP)
         )
@@ -82,11 +92,5 @@ class DashboardViewModel @Inject constructor(
                 putExtra(ProxyVpnService.EXTRA_CONFIG, profile.rawConfig)
             }
         )
-    }
-
-    fun selectProxy(group: String, proxy: String) = viewModelScope.launch {
-        coreManager.selectProxy(group, proxy)
-        // 刷新节点列表
-        _proxies.value = coreManager.getProxies()
     }
 }

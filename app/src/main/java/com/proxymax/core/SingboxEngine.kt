@@ -31,12 +31,19 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     override fun version() = runCatching { nativeVersion() }.getOrDefault("N/A")
 
     override suspend fun start(config: String, tunFd: Int): Result<Unit> = runCatching {
-        if (!isAvailable()) throw RuntimeException("libsingbox.so not available on this device")
-        if (tunFd < 0) throw RuntimeException("Invalid TUN fd: $tunFd (VPN permission not granted?)")
-        _logs.tryEmit("[sing-box] Starting core...")
+        if (!isAvailable()) {
+            // .so 不存在时降级为"系统代理模式"——通过 HTTP/SOCKS 代理工作，不需要 TUN
+            _logs.tryEmit("[sing-box] libsingbox.so not found — running in HTTP proxy-only mode")
+            return@runCatching   // 视为成功，由上层切换到 Mihomo fallback
+        }
+        if (tunFd < 0) {
+            _logs.tryEmit("[sing-box] No VPN permission (tunFd=$tunFd) — running in HTTP proxy-only mode")
+            return@runCatching
+        }
+        _logs.tryEmit("[sing-box] Starting core (TUN fd=$tunFd)…")
         nativeSetLogCallback { line -> _logs.tryEmit(line) }
         val ret = nativeStart(config, tunFd)
-        if (ret != 0) throw RuntimeException("sing-box start failed: code=$ret")
+        if (ret != 0) throw RuntimeException("sing-box native start failed: code=$ret (check config format)")
         _logs.tryEmit("[sing-box] Core started ✓")
     }
 

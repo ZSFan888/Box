@@ -23,6 +23,7 @@ import com.proxymax.ui.widget.toSpeedStr
 @Composable
 fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
     val state          by vm.state.collectAsState()
+    val liveStats      by vm.liveStats.collectAsState()
     val noProfileError by vm.noProfileError.collectAsState()
     val snackbar       = remember { SnackbarHostState() }
 
@@ -69,7 +70,7 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
 
             AnimatedVisibility(visible = state is CoreState.Running) {
                 if (state is CoreState.Running) {
-                    val stats = (state as CoreState.Running).stats
+                    val stats = liveStats
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Surface(
                             shape          = MaterialTheme.shapes.medium,
