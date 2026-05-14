@@ -28,11 +28,24 @@ class ProfileRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 Log.d("ProfileRepo", "Fetching: $url")
-                val req  = Request.Builder().url(url)
-                    .header("User-Agent", "ClashMeta/1.0 ProxyMax/1.0")
-                    .build()
-                val body = okhttp.newCall(req).execute().use { it.body?.string() ?: "" }
-                if (body.isBlank()) throw Exception("订阅内容为空，请检查链接")
+                val req = Request.Builder().url(url).build()
+                val resp = okhttp.newCall(req).execute()
+                val code = resp.code
+                val body = resp.use { it.body?.string().orEmpty() }
+                Log.d("ProfileRepo", "Response $code, body length=${body.length}")
+                when {
+                    code == 401 || code == 403 ->
+                        throw Exception("订阅链接需要认证（HTTP $code），请检查链接是否过期")
+                    code == 404 ->
+                        throw Exception("订阅链接不存在（HTTP 404），请重新获取")
+                    code !in 200..299 ->
+                        throw Exception("服务器返回错误（HTTP $code）")
+                    body.isBlank() ->
+                        throw Exception("订阅内容为空，请检查链接是否有效")
+                    body.trimStart().startsWith("<html") ||
+                    body.trimStart().startsWith("<!DOCTYPE") ->
+                        throw Exception("订阅链接返回了 HTML 页面，而非配置文件，请确认链接正确")
+                }
                 saveRawConfig(name, url, body)
             }
         }

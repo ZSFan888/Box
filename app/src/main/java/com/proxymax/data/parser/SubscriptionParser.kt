@@ -197,9 +197,11 @@ object SubscriptionParser {
     }
 
     private fun isBase64(s: String): Boolean {
-        if (s.length % 4 != 0 && !s.endsWith("=")) return false
+        // 机场 base64 不一定有 padding，只要解码后含协议头就认定
+        val cleaned = s.trim().replace("\n", "").replace("\r", "")
+        if (cleaned.length < 16) return false
         return runCatching {
-            val decoded = String(Base64.decode(s, Base64.DEFAULT))
+            val decoded = String(Base64.decode(cleaned, Base64.URL_SAFE or Base64.DEFAULT))
             decoded.contains("://") || decoded.contains("proxies:")
         }.getOrDefault(false)
     }

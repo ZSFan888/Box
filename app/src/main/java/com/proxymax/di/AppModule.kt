@@ -39,7 +39,16 @@ object AppModule {
     @Provides @Singleton
     fun provideOkHttp(): OkHttpClient =
         OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .addInterceptor { chain ->
+                // 部分机场需要 Clash 风格 UA，否则返回 403
+                val req = chain.request().newBuilder()
+                    .header("User-Agent", "ClashForAndroid/2.5.12")
+                    .build()
+                chain.proceed(req)
+            }
             .build()
 }
