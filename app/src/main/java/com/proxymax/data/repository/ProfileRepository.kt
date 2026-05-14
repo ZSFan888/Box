@@ -5,6 +5,7 @@ import com.proxymax.data.model.*
 import com.proxymax.data.parser.SubscriptionParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -31,6 +32,7 @@ class ProfileRepository @Inject constructor(
                     .header("User-Agent", "ClashMeta/1.0 ProxyMax/1.0")
                     .build()
                 val body = okhttp.newCall(req).execute().use { it.body?.string() ?: "" }
+                if (body.isBlank()) throw Exception("订阅内容为空，请检查链接")
                 saveRawConfig(name, url, body)
             }
         }
@@ -48,7 +50,6 @@ class ProfileRepository @Inject constructor(
             )
             val id = profileDao.insertProfile(profile).toInt()
             val profileWithId = profile.copy(id = id)
-
             if (nodes.isNotEmpty()) {
                 nodeDao.deleteNodesForProfile(id)
                 nodeDao.insertNodes(nodes.map { it.copy(profileId = id) })
@@ -57,15 +58,12 @@ class ProfileRepository @Inject constructor(
             profileWithId
         }
 
-    /** 设为激活配置 */
+    /** 设为激活配置（同时自动激活首个配置） */
     suspend fun setActiveProfile(profileId: Int) = withContext(Dispatchers.IO) {
         profileDao.clearActiveProfiles()
-        val profile = profileDao.getAllProfiles().let {
-            // blocking query
-            profileDao.getActiveProfile() // temp
-        }
-        // update via query
-        // In production, add a specific DAO method
+        val profiles = profileDao.getAllProfiles().first()
+        val target = profiles.find { it.id == profileId } ?: return@withContext
+        profileDao.updateProfile(target.copy(isActive = true))
     }
 
     /** 更新节点延迟 */

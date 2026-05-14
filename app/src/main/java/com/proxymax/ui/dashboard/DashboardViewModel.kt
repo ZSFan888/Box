@@ -23,6 +23,10 @@ class DashboardViewModel @Inject constructor(
 
     val state: StateFlow<CoreState> = coreManager.state
 
+    private val _noProfileError = MutableStateFlow(false)
+    val noProfileError: StateFlow<Boolean> = _noProfileError.asStateFlow()
+    fun clearNoProfileError() { _noProfileError.value = false }
+
     // 代理节点列表（从 Clash API 获取，用于策略组显示）
     private val _proxies = MutableStateFlow<Map<String, com.proxymax.core.stats.ProxyInfo>>(emptyMap())
     val proxies: StateFlow<Map<String, com.proxymax.core.stats.ProxyInfo>> = _proxies.asStateFlow()
@@ -48,7 +52,7 @@ class DashboardViewModel @Inject constructor(
 
     private fun startVpn() = viewModelScope.launch {
         val profile = profileDao.getActiveProfile() ?: run {
-            // 没有激活配置 → 提示用户去添加订阅
+            _noProfileError.value = true
             return@launch
         }
         val core = coreManager.recommendCore(profile.rawConfig)

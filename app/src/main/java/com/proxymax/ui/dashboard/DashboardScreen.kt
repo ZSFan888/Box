@@ -19,7 +19,16 @@ import com.proxymax.ui.widget.toSpeedStr
 @Composable
 fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
     val state by vm.state.collectAsState()
+    val noProfileError by vm.noProfileError.collectAsState()
     val scroll = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(noProfileError) {
+        if (noProfileError) {
+            snackbarHostState.showSnackbar("请先在「节点」页面添加订阅并激活")
+            vm.clearNoProfileError()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -38,6 +47,7 @@ fun DashboardScreen(vm: DashboardViewModel = hiltViewModel()) {
                 }
             )
         }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
