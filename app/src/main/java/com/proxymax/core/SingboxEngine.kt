@@ -12,12 +12,6 @@ import javax.inject.Singleton
 
 /**
  * sing-box v1.13.11 内核封装
- *
- * libbox.jar  = 从 SFA APK classes.dex 用 dex2jar 转换（CI 构建时生成）
- * libbox.so   = 从 SFA per-ABI APK 提取（CI 构建时生成）
- *
- * 用反射调用 io.nekohasekai.libbox.Libbox，避免编译期依赖（jar 由 CI 动态生成）
- * CI 验证 jar 正常后，可改为直接 import 强类型调用
  */
 @Singleton
 class SingboxEngine @Inject constructor() : CoreEngine {
@@ -27,10 +21,27 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     private val _stats = MutableStateFlow(TrafficStats())
     private val _logs  = MutableSharedFlow<String>(replay = 200, extraBufferCapacity = 500)
 
-    // 由 ProxyVpnService 通过 CoreManager.setPlatformInterface() 注入
     var platformInterface: Any? = null
 
+    companion object {
+        // ★ 关键修复：主动加载 libbox.so
+        // gomobile 生成的 JNI 类不会自动触发 so 加载，必须手动 loadLibrary
+        private val soLoaded: Boolean by lazy {
+            listOf("box", "gojni", "singbox", "libbox").any { name ->
+                runCatching {
+                    System.loadLibrary(name)
+                    android.util.Log.i("SingboxEngine", "Loaded lib$name.so")
+                    true
+                }.getOrElse {
+                    android.util.Log.w("SingboxEngine", "lib$name.so: ${it.message}")
+                    false
+                }
+            }
+        }
+    }
+
     private val libboxClass: Class<*>? by lazy {
+        soLoaded // 先确保 .so 已加载
         runCatching {
             Class.forName("io.nekohasekai.libbox.Libbox")
         }.getOrElse {
@@ -60,14 +71,10 @@ class SingboxEngine @Inject constructor() : CoreEngine {
             _logs.tryEmit("[sing-box] libbox not loaded — HTTP proxy-only mode")
             return@runCatching
         }
-        // 校验配置
         val checkConfig = libboxClass!!.getMethod("checkConfig", String::class.java)
         val configErr = checkConfig.invoke(null, config) as? String
         if (configErr != null) throw RuntimeException("Config invalid: $configErr")
-
         _logs.tryEmit("[sing-box] ${version()} ✓  config OK  TUN fd=$tunFd")
-        // TUN 由 ProxyVpnService(PlatformInterface.openTun) 提供
-        // libbox CommandServer 在 PlatformInterface 注入后接管流量
     }
 
     override suspend fun stop(): Result<Unit> = runCatching {
