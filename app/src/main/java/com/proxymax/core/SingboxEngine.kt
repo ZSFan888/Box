@@ -1,7 +1,5 @@
 package com.proxymax.core
 
-import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.libbox.SetupOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,12 +13,11 @@ import javax.inject.Singleton
 /**
  * sing-box v1.13.11 内核封装
  *
- * libbox.jar  = 官方 Java binding（从 SFA universal APK 提取）
- * libbox.so   = gomobile 生成的 native 库（从 SFA ABI APK 提取）
+ * libbox.jar  = 从 SFA APK classes.dex 用 dex2jar 转换（CI 构建时生成）
+ * libbox.so   = 从 SFA per-ABI APK 提取（CI 构建时生成）
  *
- * 架构：你的 ProxyVpnService 实现 PlatformInterface → 提供 TUN fd
- *      SingboxEngine 负责配置校验、版本检查、日志收集
- *      流量转发由 libbox 内部通过 CommandServer 完成
+ * 用反射调用 io.nekohasekai.libbox.Libbox，避免编译期依赖（jar 由 CI 动态生成）
+ * CI 验证 jar 正常后，可改为直接 import 强类型调用
  */
 @Singleton
 class SingboxEngine @Inject constructor() : CoreEngine {
@@ -31,36 +28,46 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     private val _logs  = MutableSharedFlow<String>(replay = 200, extraBufferCapacity = 500)
 
     // 由 ProxyVpnService 通过 CoreManager.setPlatformInterface() 注入
-    // 类型为 io.nekohasekai.libbox.PlatformInterface（编译时可用后可强类型化）
     var platformInterface: Any? = null
 
-        private val _available: Boolean by lazy {
+    private val libboxClass: Class<*>? by lazy {
         runCatching {
-            Libbox.version()   // 调用任意 Libbox 静态方法验证 .so 已加载
+            Class.forName("io.nekohasekai.libbox.Libbox")
+        }.getOrElse {
+            _logs.tryEmit("[sing-box] libbox class not found: ${it.message}")
+            null
+        }
+    }
+
+    private val _available: Boolean by lazy {
+        libboxClass != null && runCatching {
+            libboxClass!!.getMethod("version").invoke(null)
             true
         }.getOrElse {
-            _logs.tryEmit("[sing-box] libbox unavailable: ${it.message}")
+            _logs.tryEmit("[sing-box] libbox.so not loaded: ${it.message}")
             false
         }
     }
 
     override fun isAvailable() = _available
 
-    override fun version(): String =
-        runCatching { Libbox.version() }.getOrDefault("v1.13.11 (unavailable)")
+    override fun version(): String = runCatching {
+        libboxClass?.getMethod("version")?.invoke(null) as? String ?: "v1.13.11 (unavailable)"
+    }.getOrDefault("v1.13.11 (unavailable)")
 
     override suspend fun start(config: String, tunFd: Int): Result<Unit> = runCatching {
         if (!isAvailable()) {
             _logs.tryEmit("[sing-box] libbox not loaded — HTTP proxy-only mode")
             return@runCatching
         }
-        // 校验配置格式
-        val configErr = Libbox.checkConfig(config)
+        // 校验配置
+        val checkConfig = libboxClass!!.getMethod("checkConfig", String::class.java)
+        val configErr = checkConfig.invoke(null, config) as? String
         if (configErr != null) throw RuntimeException("Config invalid: $configErr")
 
-        _logs.tryEmit("[sing-box] ${Libbox.version()} ✓  config OK  TUN fd=$tunFd")
-        // TUN 建立由 ProxyVpnService 通过 PlatformInterface.OpenTun 完成
-        // libbox CommandServer 会在 VpnService.onStartCommand 时启动
+        _logs.tryEmit("[sing-box] ${version()} ✓  config OK  TUN fd=$tunFd")
+        // TUN 由 ProxyVpnService(PlatformInterface.openTun) 提供
+        // libbox CommandServer 在 PlatformInterface 注入后接管流量
     }
 
     override suspend fun stop(): Result<Unit> = runCatching {
@@ -68,7 +75,8 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     }
 
     override suspend fun reload(config: String): Result<Unit> = runCatching {
-        val configErr = Libbox.checkConfig(config)
+        val checkConfig = libboxClass?.getMethod("checkConfig", String::class.java)
+        val configErr = checkConfig?.invoke(null, config) as? String
         if (configErr != null) throw RuntimeException("Config invalid: $configErr")
         _logs.tryEmit("[sing-box] Config reloaded ✓")
     }
@@ -79,7 +87,7 @@ class SingboxEngine @Inject constructor() : CoreEngine {
                 .connectTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
                 .build()
-            val enc = URLEncoder.encode(proxyName, "UTF-8")
+            val enc    = URLEncoder.encode(proxyName, "UTF-8")
             val urlEnc = URLEncoder.encode(url, "UTF-8")
             val apiUrl = "http://127.0.0.1:9090/proxies/$enc/delay?timeout=$timeoutMs&url=$urlEnc"
             val t0 = System.currentTimeMillis()

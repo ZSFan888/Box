@@ -12,18 +12,12 @@ import com.proxymax.data.converter.ConfigConverter
 import com.proxymax.ui.widget.WidgetState
 import com.proxymax.data.model.PerAppMode
 import dagger.hilt.android.AndroidEntryPoint
-import io.nekohasekai.libbox.LocalDNSTransport
-import io.nekohasekai.libbox.InterfaceUpdateListener
-import io.nekohasekai.libbox.NetworkInterfaceIterator
-import io.nekohasekai.libbox.Notification
-import io.nekohasekai.libbox.PlatformInterface
-import io.nekohasekai.libbox.StringIterator
-import io.nekohasekai.libbox.TunOptions
-import io.nekohasekai.libbox.WIFIState
-import io.nekohasekai.libbox.ConnectionOwner
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Method
+import java.lang.reflect.Proxy
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -50,54 +44,56 @@ class ProxyVpnService : VpnService() {
         const val NOTIF_ID      = 1001
     }
 
-    // ── PlatformInterface 实现 ────────────────────────────────────────────
-    // sing-box libbox 通过这个接口回调 Android 平台 API
-    // OpenTun：libbox 需要建立 TUN 时，直接返回已有的 tunFd（我们自己建的）
-    inner class LibboxPlatformInterface : PlatformInterface {
-
-        override fun openTun(options: TunOptions?): Int {
-            // TUN 已经由 buildTun() 建立，直接返回 fd
-            // libbox 会 dup() 这个 fd，我们保持原 fd 不变
-            Log.d(TAG, "LibboxPlatformInterface.openTun called, fd=$currentTunFd")
-            return currentTunFd
+    // ── PlatformInterface 动态代理 ──────────────────────────────────────
+    // 用 Java 动态代理实现 io.nekohasekai.libbox.PlatformInterface
+    // 避免编译期 import（jar 由 CI 动态生成）
+    private fun buildPlatformInterface(): Any? {
+        val ifaceClass = runCatching {
+            Class.forName("io.nekohasekai.libbox.PlatformInterface")
+        }.getOrNull() ?: run {
+            Log.w(TAG, "PlatformInterface class not found — libbox.jar not loaded")
+            return null
         }
 
-        override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
-
-        override fun autoDetectInterfaceControl(fd: Int): Int {
-            // 让 Android 系统自动保护这个 fd（走底层网络，不进 VPN）
-            return if (protect(fd)) 0 else -1
-        }
-
-        override fun useProcFS(): Boolean = false
-
-        override fun findConnectionOwner(
-            ipProtocol: Int,
-            sourceAddress: String?,
-            sourcePort: Int,
-            destinationAddress: String?,
-            destinationPort: Int
-        ): ConnectionOwner? = null
-
-        override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener?): Int = 0
-
-        override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener?): Int = 0
-
-        override fun getInterfaces(): NetworkInterfaceIterator? = null
-
-        override fun underNetworkExtension(): Boolean = false
-
-        override fun includeAllNetworks(): Boolean = false
-
-        override fun readWIFIState(): WIFIState? = null
-
-        override fun systemCertificates(): StringIterator? = null
-
-        override fun clearDNSCache() {}
-
-        override fun sendNotification(notification: Notification?): Int = 0
-
-        override fun localDNSTransport(): LocalDNSTransport? = null
+        return Proxy.newProxyInstance(
+            ifaceClass.classLoader,
+            arrayOf(ifaceClass),
+            object : InvocationHandler {
+                override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? {
+                    return when (method.name) {
+                        // 核心方法：返回已建立的 TUN fd
+                        // libbox 会 dup() 此 fd，我们保持原 fd 不变
+                        "openTun" -> {
+                            Log.d(TAG, "PlatformInterface.openTun → fd=$currentTunFd")
+                            currentTunFd
+                        }
+                        // 自动接口控制：true = 让 libbox 自动选择出口接口
+                        "usePlatformAutoDetectInterfaceControl" -> true
+                        // 保护 fd 不走 VPN（防止环路）
+                        "autoDetectInterfaceControl" -> {
+                            val fd = args?.firstOrNull() as? Int ?: return@invoke -1
+                            if (protect(fd)) 0 else -1
+                        }
+                        // 不使用 /proc/net（Android 用系统 API）
+                        "useProcFS" -> false
+                        // 不在 NetworkExtension 里（iOS 概念）
+                        "underNetworkExtension" -> false
+                        "includeAllNetworks"    -> false
+                        // 其余方法：返回 null / 0 / false 安全默认值
+                        else -> {
+                            val rt = method.returnType
+                            when {
+                                rt == Void.TYPE      -> null
+                                rt == Boolean::class.javaPrimitiveType -> false
+                                rt == Int::class.javaPrimitiveType     -> 0
+                                rt == Long::class.javaPrimitiveType    -> 0L
+                                else -> null
+                            }
+                        }
+                    }
+                }
+            }
+        )
     }
 
     // ── TUN 建立（带应用分流）────────────────────────────────────────────
@@ -115,11 +111,9 @@ class ProxyVpnService : VpnService() {
             .setSession("ProxyMax")
 
         when (perAppMode) {
-            PerAppMode.WHITELIST -> {
-                packages.forEach { pkg ->
-                    runCatching { builder.addAllowedApplication(pkg) }
-                        .onFailure { Log.w(TAG, "Unknown package: $pkg") }
-                }
+            PerAppMode.WHITELIST -> packages.forEach { pkg ->
+                runCatching { builder.addAllowedApplication(pkg) }
+                    .onFailure { Log.w(TAG, "Unknown package: $pkg") }
             }
             PerAppMode.BLACKLIST -> {
                 packages.forEach { pkg ->
@@ -128,9 +122,7 @@ class ProxyVpnService : VpnService() {
                 }
                 builder.addDisallowedApplication(packageName)
             }
-            PerAppMode.GLOBAL -> {
-                builder.addDisallowedApplication(packageName)
-            }
+            PerAppMode.GLOBAL -> builder.addDisallowedApplication(packageName)
         }
         builder.establish()
     } catch (e: Exception) {
@@ -153,7 +145,6 @@ class ProxyVpnService : VpnService() {
         return START_STICKY
     }
 
-    // ── 启动 ──────────────────────────────────────────────────────────────
     private fun handleStart(intent: Intent) {
         val coreTypeName = intent.getStringExtra(EXTRA_CORE) ?: CoreType.MIHOMO.name
         val rawConfig    = intent.getStringExtra(EXTRA_CONFIG) ?: return
@@ -177,26 +168,20 @@ class ProxyVpnService : VpnService() {
             tunInterface?.close()
             tunInterface = buildTun(perAppMode, packages)
             val fd = tunInterface?.fd ?: run {
-                Log.e(TAG, "TUN establish failed")
-                stopSelf(); return@launch
+                Log.e(TAG, "TUN establish failed"); stopSelf(); return@launch
             }
-
             currentTunFd = fd
 
-            // sing-box 模式下注入 PlatformInterface
+            // sing-box：注入 PlatformInterface 动态代理
             if (coreType == CoreType.SINGBOX) {
-                coreManager.setPlatformInterface(LibboxPlatformInterface())
+                buildPlatformInterface()?.let { coreManager.setPlatformInterface(it) }
             }
 
             coreManager.startCore(coreType, config, fd, apiPort, secret)
-                .onFailure { e ->
-                    Log.e(TAG, "Core start failed", e)
-                    stopSelf()
-                }
+                .onFailure { e -> Log.e(TAG, "Core start failed", e); stopSelf() }
         }
     }
 
-    // ── 停止 ──────────────────────────────────────────────────────────────
     private fun handleStop() {
         scope.launch(Dispatchers.IO) {
             coreManager.stopCurrent()
@@ -210,7 +195,6 @@ class ProxyVpnService : VpnService() {
         }
     }
 
-    // ── 热切换内核 ─────────────────────────────────────────────────────────
     private fun handleSwitch(intent: Intent) {
         val coreTypeName = intent.getStringExtra(EXTRA_CORE) ?: return
         val rawConfig    = intent.getStringExtra(EXTRA_CONFIG) ?: return
@@ -224,16 +208,16 @@ class ProxyVpnService : VpnService() {
                 CoreType.MIHOMO  -> rawConfig
             }
             if (toType == CoreType.SINGBOX) {
-                coreManager.setPlatformInterface(LibboxPlatformInterface())
+                buildPlatformInterface()?.let { coreManager.setPlatformInterface(it) }
             }
             coreManager.switchCore(
-                    toType  = toType,
-                    config  = config,
-                    tunFd   = currentTunFd,
-                    apiPort = apiPort,
-                    secret  = intent.getStringExtra(EXTRA_SECRET) ?: ""
-                ).onSuccess { Log.d(TAG, "Switched to $toType") }
-                 .onFailure { Log.e(TAG, "Switch failed", it) }
+                toType  = toType,
+                config  = config,
+                tunFd   = currentTunFd,
+                apiPort = apiPort,
+                secret  = intent.getStringExtra(EXTRA_SECRET) ?: ""
+            ).onSuccess { Log.d(TAG, "Switched to $toType") }
+             .onFailure { Log.e(TAG, "Switch failed", it) }
         }
     }
 
@@ -241,7 +225,7 @@ class ProxyVpnService : VpnService() {
         coreManager.state.onEach { state: CoreState ->
             val text = when (state) {
                 is CoreState.Running   ->
-                    "${"${state.core.displayName}"} · ↑${state.stats.uploadSpeed.toSpeedStr()} ↓${state.stats.downloadSpeed.toSpeedStr()}"
+                    "${state.core.displayName} · ↑${state.stats.uploadSpeed.toSpeedStr()} ↓${state.stats.downloadSpeed.toSpeedStr()}"
                 is CoreState.Switching -> "切换 ${state.from.displayName}→${state.to.displayName}"
                 is CoreState.Starting  -> "启动中…"
                 is CoreState.Error     -> "❌ ${state.message}"

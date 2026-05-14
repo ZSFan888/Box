@@ -18,19 +18,33 @@ jobs:
         run: |
           BASE="https://github.com/sagernet/sing-box/releases/download/v1.13.11"
           mkdir -p app/libs
+
+          # 下载 universal APK，提取 classes.dex
           curl -fsSL -o /tmp/sfa_uni.apk "${BASE}/SFA-1.13.11-universal.apk"
-          unzip -o /tmp/sfa_uni.apk "assets/main.jar" -d /tmp/sfa_uni
-          cp /tmp/sfa_uni/assets/main.jar app/libs/libbox.jar
+          unzip -o /tmp/sfa_uni.apk "classes*.dex" -d /tmp/sfa_uni
+          ls /tmp/sfa_uni/
+
+          # 用 dex2jar 把 dex 转成可用的 jar（包含 io.nekohasekai.libbox.* Java 类）
+          curl -fsSL -o /tmp/dex2jar.zip \
+            "https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip"
+          unzip -q /tmp/dex2jar.zip -d /tmp/d2j
+          D2J=$(find /tmp/d2j -name "d2j-dex2jar.sh" | head -1)
+          chmod +x "$D2J"
+
+          # 只转 classes.dex（libbox 主 dex），避免其他 dex 引入无用依赖
+          bash "$D2J" -o app/libs/libbox.jar /tmp/sfa_uni/classes.dex
           echo "libbox.jar: $(du -sh app/libs/libbox.jar | cut -f1)"
+
+          # 提取各 ABI libbox.so
           for ABI in arm64-v8a armeabi-v7a x86_64; do
             curl -fsSL -o "/tmp/sfa_${ABI}.apk" "${BASE}/SFA-1.13.11-${ABI}.apk"
             mkdir -p "app/src/main/jniLibs/${ABI}"
             unzip -o "/tmp/sfa_${ABI}.apk" "lib/${ABI}/libbox.so" -d /tmp/lbtmp
             cp "/tmp/lbtmp/lib/${ABI}/libbox.so" "app/src/main/jniLibs/${ABI}/libbox.so"
             rm -rf /tmp/lbtmp "/tmp/sfa_${ABI}.apk"
-            echo "libbox.so -> jniLibs/${ABI}/ ($(du -sh app/src/main/jniLibs/${ABI}/libbox.so | cut -f1))"
+            echo "✅ jniLibs/${ABI}/libbox.so ($(du -sh app/src/main/jniLibs/${ABI}/libbox.so | cut -f1))"
           done
-          rm -rf /tmp/sfa_uni /tmp/sfa_uni.apk
+          rm -rf /tmp/sfa_uni /tmp/sfa_uni.apk /tmp/d2j /tmp/dex2jar.zip
 
       - name: Set version info
         run: |

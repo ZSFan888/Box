@@ -27,10 +27,7 @@ class CoreManager @Inject constructor(
 
     fun setPlatformInterface(iface: Any) {
         singboxPlatformInterface = iface
-        // 注入到 SingboxEngine（如果已有 libbox 则立即传递）
-        if (singboxEngine is SingboxEngine) {
-            singboxEngine.platformInterface = iface
-        }
+        singboxEngine.platformInterface = iface
     }
 
         private fun engineFor(type: CoreType): CoreEngine = when (type) {
