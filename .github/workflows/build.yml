@@ -40,15 +40,18 @@ jobs:
           mkdir -p /tmp/libbox_filtered
           cd /tmp/libbox_filtered
           jar xf /tmp/libbox_full.jar
-          # 删除会冲突的 Android framework 类，只留 libbox 自己的类
-          rm -rf android androidx com/google META-INF kotlin kotlinx \
-                 android.support org/jetbrains 2>/dev/null || true
+          # 白名单策略：只保留 io/ (nekohasekai) 和 go/ (gomobile JNI)
+          # 删除所有其他顶级目录，彻底杜绝 Duplicate class 冲突
+          find . -mindepth 1 -maxdepth 1 -type d \
+            ! -name io ! -name go \
+            -exec rm -rf {} + 2>/dev/null || true
+          find . -mindepth 1 -maxdepth 1 -type f -delete 2>/dev/null || true
           jar cf /tmp/libbox.jar .
           cd -
           cp /tmp/libbox.jar app/libs/libbox.jar
-          echo "libbox.jar (filtered): $(du -sh app/libs/libbox.jar | cut -f1)"
-          # 验证关键类存在
+          echo "libbox.jar (io+go only): $(du -sh app/libs/libbox.jar | cut -f1)"
           jar tf app/libs/libbox.jar | grep "nekohasekai/libbox/Libbox" || echo "WARNING: Libbox class not found"
+          echo "Total classes: $(jar tf app/libs/libbox.jar | grep \.class | wc -l)"
 
           # 提取各 ABI libbox.so
           for ABI in arm64-v8a armeabi-v7a x86_64; do
