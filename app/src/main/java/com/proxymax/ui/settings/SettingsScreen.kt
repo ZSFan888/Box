@@ -2,6 +2,9 @@ package com.proxymax.ui.settings
 
 import com.proxymax.data.model.PerAppMode
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -84,7 +87,7 @@ fun SettingsScreen(
                     Text("当前：$modeText")
                 },
                 trailingContent = { Icon(Icons.Default.ChevronRight, null) },
-                modifier = androidx.compose.foundation.clickable { onNavigatePerApp() }
+                modifier = Modifier.clickable { onNavigatePerApp() }
             )
 
             // ── 系统 ─────────────────────────────────────────────────
@@ -152,8 +155,8 @@ fun NumberItem(label: String, value: Int, onConfirm: (Int) -> Unit) {
                     onValueChange = { text = it },
                     singleLine    = true,
                     modifier      = Modifier.width(100.dp),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
                     ),
                     trailingIcon = {
                         IconButton(onClick = {
