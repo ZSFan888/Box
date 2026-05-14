@@ -233,7 +233,7 @@ object ConfigConverter {
             nodes.forEach { add(nodeToSingboxOutbound(it)) }
             add(JsonObject().apply { addProperty("type","direct");   addProperty("tag","direct") })
             add(JsonObject().apply { addProperty("type","block");    addProperty("tag","block")  })
-            add(JsonObject().apply { addProperty("type","dns");      addProperty("tag","dns-out") })
+            // dns outbound removed in sing-box 1.13 — DNS handled via hijack-dns rule action
         }
         val config = JsonObject().apply {
             add("log",  JsonObject().apply { addProperty("level", "warn") })
@@ -424,12 +424,16 @@ object ConfigConverter {
 
     private fun buildSingboxRoute(): JsonObject = JsonObject().apply {
         add("rules", JsonArray().apply {
-            add(JsonObject().apply { addProperty("protocol",  "dns");      addProperty("outbound","dns-out") })
-            add(JsonObject().apply { addProperty("geosite",   "cn");       addProperty("outbound","direct")  })
-            add(JsonObject().apply { addProperty("geoip",     "cn");       addProperty("outbound","direct")  })
-            add(JsonObject().apply { addProperty("geoip",     "private");  addProperty("outbound","direct")  })
+            // DNS sniff → resolve via sing-box DNS (replaces deprecated dns outbound)
+            add(JsonObject().apply {
+                addProperty("protocol", "dns")
+                addProperty("action",   "hijack-dns")
+            })
+            add(JsonObject().apply { addProperty("geosite",  "cn");      addProperty("outbound", "direct") })
+            add(JsonObject().apply { addProperty("geoip",    "cn");      addProperty("outbound", "direct") })
+            add(JsonObject().apply { addProperty("geoip",    "private"); addProperty("outbound", "direct") })
         })
-        addProperty("final",           "proxy")
+        addProperty("final",                "proxy")
         addProperty("auto_detect_interface", true)
     }
 
