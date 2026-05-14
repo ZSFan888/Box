@@ -24,6 +24,7 @@ class ProxyVpnService : VpnService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var tunInterface: ParcelFileDescriptor? = null
+    private var currentTunFd: Int = -1   // 切换内核时复用同一个 TUN fd
 
     companion object {
         private const val TAG = "ProxyVpnService"
@@ -126,6 +127,7 @@ class ProxyVpnService : VpnService() {
                 stopSelf(); return@launch
             }
 
+            currentTunFd = fd
             coreManager.startCore(coreType, config, fd, apiPort, secret)
                 .onFailure { e ->
                     Log.e(TAG, "Core start failed", e)
@@ -140,6 +142,7 @@ class ProxyVpnService : VpnService() {
             coreManager.stopCurrent()
             tunInterface?.close()
             tunInterface = null
+            currentTunFd = -1
             withContext(Dispatchers.Main) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -160,9 +163,14 @@ class ProxyVpnService : VpnService() {
                 CoreType.SINGBOX -> runCatching { ConfigConverter.clashToSingbox(rawConfig, apiPort) }.getOrDefault(rawConfig)
                 CoreType.MIHOMO  -> rawConfig
             }
-            coreManager.switchCore(toType, config, apiPort = apiPort)
-                .onSuccess { Log.d(TAG, "Switched to $toType") }
-                .onFailure { Log.e(TAG, "Switch failed", it) }
+            coreManager.switchCore(
+                    toType    = toType,
+                    config    = config,
+                    tunFd     = currentTunFd,   // 复用已建立的 TUN，避免重建
+                    apiPort   = apiPort,
+                    secret    = intent.getStringExtra(EXTRA_SECRET) ?: ""
+                ).onSuccess { Log.d(TAG, "Switched to $toType") }
+                 .onFailure { Log.e(TAG, "Switch failed", it) }
         }
     }
 

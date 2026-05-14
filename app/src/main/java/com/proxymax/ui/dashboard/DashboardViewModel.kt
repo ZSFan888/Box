@@ -115,12 +115,19 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun switchCore(to: CoreType) = viewModelScope.launch {
+        // 只有运行中才能热切换
+        if (state.value !is CoreState.Running) return@launch
         val profile = profileDao.getActiveProfile() ?: return@launch
+        val prefs   = dataStore.data.first()
+        val apiPort = prefs[SettingsKeys.apiPort]   ?: 9090
+        val secret  = prefs[SettingsKeys.apiSecret] ?: ""
         app.startService(
             Intent(app, ProxyVpnService::class.java).apply {
                 action = ProxyVpnService.ACTION_SWITCH
-                putExtra(ProxyVpnService.EXTRA_CORE,   to.name)
-                putExtra(ProxyVpnService.EXTRA_CONFIG, profile.rawConfig)
+                putExtra(ProxyVpnService.EXTRA_CORE,     to.name)
+                putExtra(ProxyVpnService.EXTRA_CONFIG,   profile.rawConfig)
+                putExtra(ProxyVpnService.EXTRA_API_PORT, apiPort)
+                putExtra(ProxyVpnService.EXTRA_SECRET,   secret)
             }
         )
     }

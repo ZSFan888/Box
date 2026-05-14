@@ -13,26 +13,35 @@ import javax.inject.Singleton
 
 @Singleton
 class CoreManager @Inject constructor(
+    private val mihomoEngine:  MihomoEngine,
+    private val xrayEngine:    XrayEngine,
     private val singboxEngine: SingboxEngine,
     private val statsCollector: StatsCollector,
-    private val apiClient: ClashApiClient
+    private val apiClient:     ClashApiClient
 ) {
     private val _state = MutableStateFlow<CoreState>(CoreState.Idle)
     val state: StateFlow<CoreState> = _state.asStateFlow()
 
+    private fun engineFor(type: CoreType): CoreEngine = when (type) {
+        CoreType.MIHOMO  -> mihomoEngine
+        CoreType.XRAY    -> xrayEngine
+        CoreType.SINGBOX -> singboxEngine
+    }
+
     suspend fun startCore(
         coreType: CoreType,
-        config: String,
-        tunFd: Int,
-        apiPort: Int = 9090,
-        secret: String = ""
+        config:   String,
+        tunFd:    Int,
+        apiPort:  Int = 9090,
+        secret:   String = ""
     ): Result<Unit> {
         _state.value = CoreState.Starting
         apiClient.configure(apiPort, secret)
-        return if (singboxEngine.isAvailable() && tunFd >= 0) {
-            singboxEngine.start(config, tunFd)
+        val engine = engineFor(coreType)
+        return if (engine.isAvailable() && tunFd >= 0) {
+            engine.start(config, tunFd)
         } else {
-            // 无 .so 或未获得 VPN 授权时，直接标记为运行中（仅代理模式）
+            // .so 不存在或无 TUN → HTTP proxy-only 模式
             Result.success(Unit)
         }.also { result ->
             _state.value = if (result.isSuccess)
@@ -43,33 +52,33 @@ class CoreManager @Inject constructor(
     }
 
     suspend fun stopCurrent(): Result<Unit> {
-        return singboxEngine.stop().also {
+        // 停止当前运行的引擎
+        val current = (_state.value as? CoreState.Running)?.core ?: CoreType.SINGBOX
+        return engineFor(current).stop().also {
             _state.value = CoreState.Stopped
         }
     }
 
     suspend fun switchCore(
-        toType: CoreType,
-        config: String,
-        tunFd: Int = -1,
+        toType:  CoreType,
+        config:  String,
+        tunFd:   Int = -1,
         apiPort: Int = 9090,
-        secret: String = ""
+        secret:  String = ""
     ): Result<Unit> {
         val from = (_state.value as? CoreState.Running)?.core ?: toType
         _state.value = CoreState.Switching(from, toType)
-        singboxEngine.stop()
+        // 停止当前引擎
+        engineFor(from).stop()
+        // 启动目标引擎
         return startCore(toType, config, tunFd, apiPort, secret)
     }
 
-    suspend fun getProxies(): Map<String, ProxyInfo> = apiClient.getProxies()
+    suspend fun getProxies(): Map<String, ProxyInfo>     = apiClient.getProxies()
+    suspend fun testDelay(name: String): Int             = apiClient.testDelay(name)
+    suspend fun selectProxy(group: String, proxy: String) = apiClient.selectProxy(group, proxy)
 
-    suspend fun testDelay(name: String): Int = apiClient.testDelay(name)
-
-    suspend fun selectProxy(group: String, proxy: String): Boolean =
-        apiClient.selectProxy(group, proxy)
-
-    fun logs(): Flow<String> = singboxEngine.logs()
-
+    fun logs(): Flow<String>       = singboxEngine.logs()
     fun trafficFlow(): Flow<TrafficData> = apiClient.trafficFlow()
 
     /** 根据配置内容推荐最合适的内核 */

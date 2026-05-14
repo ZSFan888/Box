@@ -263,9 +263,9 @@ fun ConnectCard(state: CoreState, onToggle: () -> Unit, onSwitch: (CoreType) -> 
                         val selected = isRunning && (state as CoreState.Running).core == core
                         FilterChip(
                             selected    = selected,
-                            onClick     = { onSwitch(core) },
+                            onClick     = { if (isRunning) onSwitch(core) },
                             label       = { Text(core.displayName, style = MaterialTheme.typography.labelMedium) },
-                            enabled     = !isBusy,
+                            enabled     = isRunning && !isBusy,
                             leadingIcon = if (selected) ({
                                 Icon(Icons.Default.Check, null, Modifier.size(14.dp))
                             }) else null
