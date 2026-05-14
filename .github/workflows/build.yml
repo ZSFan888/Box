@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { java-version: "17", distribution: "temurin" }
 
-      # ── 构建 APK ────────────────────────────────────────────────────
+      # ── 构建 APK ─────────────────────────────────────────────────────
       - name: Build Debug APK
         run: |
           ./gradlew :app:assembleDebug --no-daemon --stacktrace \
@@ -27,7 +27,7 @@ jobs:
           name: APK-debug
           path: app/build/outputs/apk/debug/*.apk
 
-      # ── 启动模拟器，安装 APK，抓崩溃日志 ───────────────────────────
+      # ── 模拟器启动测试 ────────────────────────────────────────────────
       - name: Enable KVM
         if: success()
         run: |
@@ -56,24 +56,31 @@ jobs:
             echo "=== Launching App ==="
             adb shell am start -W -n com.proxymax.app/com.proxymax.MainActivity 2>&1 || true
 
-            echo "=== Waiting 8s for potential crash ==="
-            sleep 8
+            echo "=== Waiting 10s ==="
+            sleep 10
 
-            echo "=== Capturing crash log ==="
-            adb logcat -d \
-              --pid=$(adb shell pidof -s com.proxymax.app 2>/dev/null || echo "0") \
-              -v time > /tmp/app_logcat.txt 2>&1 || true
+            echo "=== Capturing logs ==="
+            APP_PID=$(adb shell pidof -s com.proxymax.app 2>/dev/null || true)
+            if [ -n "$APP_PID" ]; then
+              adb logcat -d --pid="$APP_PID" -v time > /tmp/app_logcat.txt 2>&1 || true
+            else
+              adb logcat -d -v time > /tmp/app_logcat.txt 2>&1 || true
+            fi
 
-            # 也抓全量 crash 相关日志
             adb logcat -d -v time | grep -E \
-              "AndroidRuntime|FATAL EXCEPTION|Process: com.proxymax|E com.proxymax|Caused by|at com.proxymax" \
+              "AndroidRuntime|FATAL EXCEPTION|Process: com\.proxymax|WM-Worker|Caused by" \
               > /tmp/crash_log.txt 2>&1 || true
 
-            echo "=== Crash log (last 100 lines) ==="
-            tail -100 /tmp/crash_log.txt || echo "(no crash detected)"
+            echo "=== Crash / Worker log (last 60 lines) ==="
+            tail -60 /tmp/crash_log.txt || echo "(no crash detected)"
 
             echo "=== App still running? ==="
-            adb shell pidof com.proxymax.app && echo "✅ App is running!" || echo "❌ App crashed or not running"
+            if adb shell pidof com.proxymax.app > /dev/null 2>&1; then
+              echo "✅ App is running!"
+            else
+              echo "❌ App crashed or not running"
+              exit 1
+            fi
 
       - name: Upload Crash Log
         if: always()
@@ -83,11 +90,12 @@ jobs:
           path: |
             /tmp/crash_log.txt
             /tmp/app_logcat.txt
+          if-no-files-found: warn
 
-      # ── 构建失败时上传构建错误日志 ──────────────────────────────────
       - name: Upload Build Error Log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-error-log
           path: /tmp/build.log
+          if-no-files-found: warn
