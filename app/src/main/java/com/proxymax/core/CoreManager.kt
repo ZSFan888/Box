@@ -1,7 +1,13 @@
 package com.proxymax.core
 
 import com.proxymax.core.stats.ClashApiClient
+import com.proxymax.core.stats.ProxyInfo
 import com.proxymax.core.stats.StatsCollector
+import com.proxymax.core.stats.TrafficData
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,10 +17,61 @@ class CoreManager @Inject constructor(
     private val statsCollector: StatsCollector,
     private val apiClient: ClashApiClient
 ) {
-    val state = singboxEngine.state
-    fun startCore(config: String, tunFd: Int) = singboxEngine.start(config, tunFd)
-    fun stopCurrent() = singboxEngine.stop()
-    fun getProxies() = apiClient.getProxies()
-    fun testDelay(name: String) = apiClient.testDelay(name)
-    fun selectProxy(group: String, proxy: String) = apiClient.selectProxy(group, proxy)
+    private val _state = MutableStateFlow<CoreState>(CoreState.Idle)
+    val state: StateFlow<CoreState> = _state.asStateFlow()
+
+    suspend fun startCore(
+        coreType: CoreType,
+        config: String,
+        tunFd: Int,
+        apiPort: Int = 9090,
+        secret: String = ""
+    ): Result<Unit> {
+        _state.value = CoreState.Starting
+        apiClient.configure(apiPort, secret)
+        return singboxEngine.start(config, tunFd).also { result ->
+            _state.value = if (result.isSuccess)
+                CoreState.Running(coreType, TrafficStats())
+            else
+                CoreState.Error(coreType, result.exceptionOrNull()?.message ?: "Unknown error")
+        }
+    }
+
+    suspend fun stopCurrent(): Result<Unit> {
+        return singboxEngine.stop().also {
+            _state.value = CoreState.Stopped
+        }
+    }
+
+    suspend fun switchCore(
+        toType: CoreType,
+        config: String,
+        tunFd: Int = -1,
+        apiPort: Int = 9090,
+        secret: String = ""
+    ): Result<Unit> {
+        val from = (_state.value as? CoreState.Running)?.core ?: toType
+        _state.value = CoreState.Switching(from, toType)
+        singboxEngine.stop()
+        return startCore(toType, config, tunFd, apiPort, secret)
+    }
+
+    suspend fun getProxies(): Map<String, ProxyInfo> = apiClient.getProxies()
+
+    suspend fun testDelay(name: String): Int = apiClient.testDelay(name)
+
+    suspend fun selectProxy(group: String, proxy: String): Boolean =
+        apiClient.selectProxy(group, proxy)
+
+    fun logs(): Flow<String> = singboxEngine.logs()
+
+    fun trafficFlow(): Flow<TrafficData> = apiClient.trafficFlow()
+
+    /** 根据配置内容推荐最合适的内核 */
+    fun recommendCore(rawConfig: String): CoreType = when {
+        rawConfig.trimStart().startsWith("{") &&
+            rawConfig.contains("\"outbounds\"") -> CoreType.SINGBOX
+        rawConfig.contains("\"inbounds\"") -> CoreType.XRAY
+        else -> CoreType.MIHOMO
+    }
 }

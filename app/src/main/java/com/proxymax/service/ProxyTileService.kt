@@ -18,7 +18,7 @@ class ProxyTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         scope.launch {
-            coreManager.state.collect { state ->
+            coreManager.state.collect { state: com.proxymax.core.CoreState ->
                 qsTile?.apply {
                     when (state) {
                         is CoreState.Running -> {

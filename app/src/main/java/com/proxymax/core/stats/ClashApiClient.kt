@@ -137,10 +137,8 @@ class ClashApiClient @Inject constructor() {
     // ── 选择代理 ────────────────────────────────────────────────────────────
     suspend fun selectProxy(group: String, proxy: String): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val body = RequestBody.create(
-                MediaType.parse("application/json"),
-                gson.toJson(mapOf("name" to proxy))
-            )
+            val body = gson.toJson(mapOf("name" to proxy))
+                .toRequestBody("application/json".toMediaType())
             val req = Request.Builder()
                 .url("${baseUrl()}/proxies/${java.net.URLEncoder.encode(group, "UTF-8")}")
                 .auth().put(body).build()
@@ -177,10 +175,8 @@ class ClashApiClient @Inject constructor() {
     // ── 热重载配置 ──────────────────────────────────────────────────────────
     suspend fun reloadConfig(configPath: String): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val body = RequestBody.create(
-                MediaType.parse("application/json"),
-                gson.toJson(mapOf("path" to configPath))
-            )
+            val body = gson.toJson(mapOf("path" to configPath))
+                .toRequestBody("application/json".toMediaType())
             val req = Request.Builder()
                 .url("${baseUrl()}/configs?force=true")
                 .auth().put(body).build()

@@ -371,7 +371,7 @@ object ConfigConverter {
             addProperty("server_name", raw["sni"]?.asString ?: raw["host"]?.asString ?: "")
             addProperty("insecure",    raw["skip-cert-verify"]?.asBoolean ?: false)
             val fp = raw["fingerprint"]?.asString ?: raw["fp"]?.asString
-            if (!fp.isNullOrEmpty()) addProperty("utls", JsonObject().apply {
+            if (!fp.isNullOrEmpty()) add("utls", JsonObject().apply {
                 addProperty("enabled",     true)
                 addProperty("fingerprint", fp)
             })

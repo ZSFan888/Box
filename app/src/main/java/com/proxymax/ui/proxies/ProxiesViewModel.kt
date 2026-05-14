@@ -27,10 +27,10 @@ class ProxiesViewModel @Inject constructor(
     val ui: StateFlow<ProxiesUiState> = _ui.asStateFlow()
 
     /** 当前策略组已排序的节点列表（延迟从小到大，-1 排最后） */
-    val sortedProxies: StateFlow<List<ProxyInfo>> = _ui.map { state ->
+    val sortedProxies: StateFlow<List<ProxyInfo>> = _ui.map { state: ProxiesUiState ->
         val list = state.groups[state.selectedGroup] ?: emptyList()
         list.sortedWith(
-            compareBy { proxy ->
+            compareBy { proxy: ProxyInfo ->
                 val d = proxy.history.lastOrNull() ?: -1
                 if (d < 0) Int.MAX_VALUE else d
             }
@@ -39,7 +39,7 @@ class ProxiesViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            coreManager.state.collect { state ->
+            coreManager.state.collect { state: CoreState ->
                 if (state is CoreState.Running) {
                     loadProxies()
                 }

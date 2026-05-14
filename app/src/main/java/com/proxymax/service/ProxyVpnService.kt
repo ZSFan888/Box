@@ -7,7 +7,6 @@ import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.proxymax.MainActivity
-import com.proxymax.R
 import com.proxymax.core.*
 import com.proxymax.data.converter.ConfigConverter
 import com.proxymax.data.model.PerAppMode
@@ -167,7 +166,7 @@ class ProxyVpnService : VpnService() {
     }
 
     private fun observeState() {
-        coreManager.state.onEach { state ->
+        coreManager.state.onEach { state: CoreState ->
             val text = when (state) {
                 is CoreState.Running   ->
                     "${state.core.displayName} · ↑${state.stats.uploadSpeed.toSpeedStr()} ↓${state.stats.downloadSpeed.toSpeedStr()}"
@@ -198,7 +197,7 @@ class ProxyVpnService : VpnService() {
         return NotificationCompat.Builder(this, NOTIF_CHANNEL)
             .setContentTitle("ProxyMax")
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_tile)
+            .setSmallIcon(android.R.drawable.ic_lock_power_off)
             .setContentIntent(pi)
             .addAction(0, "断开", stopPi)
             .setOngoing(true)

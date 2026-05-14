@@ -30,7 +30,7 @@ class DashboardViewModel @Inject constructor(
     init {
         // 运行中时自动拉取节点列表
         viewModelScope.launch {
-            state.collect { s ->
+            state.collect { s: CoreState ->
                 if (s is CoreState.Running) {
                     _proxies.value = coreManager.getProxies()
                 }
