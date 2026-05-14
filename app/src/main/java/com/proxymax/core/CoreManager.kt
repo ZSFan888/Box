@@ -55,7 +55,11 @@ class CoreManager @Inject constructor(
             _state.value = if (result.isSuccess)
                 CoreState.Running(coreType, TrafficStats())
             else
-                CoreState.Error(coreType, result.exceptionOrNull()?.message ?: "Unknown error")
+                CoreState.Error(coreType, run {
+                    val ex = result.exceptionOrNull()
+                    if (ex != null) "${ex::class.simpleName}: ${ex.message ?: ex.cause?.message ?: "no detail"}"
+                    else "启动失败（isAvailable=${engineFor(coreType).isAvailable()}, tunFd=$tunFd）"
+                })
         }
     }
 

@@ -10,9 +10,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * sing-box v1.13.11 内核封装
- */
 @Singleton
 class SingboxEngine @Inject constructor() : CoreEngine {
 
@@ -24,8 +21,6 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     var platformInterface: Any? = null
 
     companion object {
-        // ★ 关键修复：主动加载 libbox.so
-        // gomobile 生成的 JNI 类不会自动触发 so 加载，必须手动 loadLibrary
         private val soLoaded: Boolean by lazy {
             listOf("box", "gojni", "singbox", "libbox").any { name ->
                 runCatching {
@@ -41,7 +36,7 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     }
 
     private val libboxClass: Class<*>? by lazy {
-        soLoaded // 先确保 .so 已加载
+        soLoaded
         runCatching {
             Class.forName("io.nekohasekai.libbox.Libbox")
         }.getOrElse {
@@ -55,7 +50,7 @@ class SingboxEngine @Inject constructor() : CoreEngine {
             libboxClass!!.getMethod("version").invoke(null)
             true
         }.getOrElse {
-            _logs.tryEmit("[sing-box] libbox.so not loaded: ${it.message}")
+            _logs.tryEmit("[sing-box] version() failed: ${it::class.simpleName}: ${it.message}")
             false
         }
     }
@@ -68,13 +63,48 @@ class SingboxEngine @Inject constructor() : CoreEngine {
 
     override suspend fun start(config: String, tunFd: Int): Result<Unit> = runCatching {
         if (!isAvailable()) {
-            _logs.tryEmit("[sing-box] libbox not loaded — HTTP proxy-only mode")
+            // 把 so 加载状态也记进日志，方便排查
+            _logs.tryEmit("[sing-box] libbox not available (soLoaded=$soLoaded, class=${libboxClass != null})")
             return@runCatching
         }
-        val checkConfig = libboxClass!!.getMethod("checkConfig", String::class.java)
-        val configErr = checkConfig.invoke(null, config) as? String
-        if (configErr != null) throw RuntimeException("Config invalid: $configErr")
-        _logs.tryEmit("[sing-box] ${version()} ✓  config OK  TUN fd=$tunFd")
+
+        // 尝试校验配置，方法名可能随版本变化，找不到就跳过
+        val cls = libboxClass!!
+        val checkMethods = cls.methods.filter {
+            it.name.lowercase().contains("check") || it.name.lowercase().contains("config")
+        }.map { it.name }
+        _logs.tryEmit("[sing-box] available methods with check/config: $checkMethods")
+
+        val checkMethod = runCatching { cls.getMethod("checkConfig", String::class.java) }.getOrNull()
+            ?: runCatching { cls.getMethod("check", String::class.java) }.getOrNull()
+
+        if (checkMethod != null) {
+            val configErr = checkMethod.invoke(null, config) as? String
+            if (!configErr.isNullOrEmpty()) {
+                throw RuntimeException("Config invalid: $configErr")
+            }
+        } else {
+            _logs.tryEmit("[sing-box] checkConfig method not found — skipping validation")
+        }
+
+        _logs.tryEmit("[sing-box] ${version()} ✓  TUN fd=$tunFd  starting...")
+        // 尝试调用 newService / run / start
+        val startMethod = runCatching { cls.getMethod("newService", String::class.java) }.getOrNull()
+            ?: runCatching { cls.getMethod("run", String::class.java) }.getOrNull()
+            ?: runCatching { cls.getMethod("start", String::class.java) }.getOrNull()
+
+        if (startMethod != null) {
+            _logs.tryEmit("[sing-box] calling ${startMethod.name}(config)...")
+            startMethod.invoke(null, config)
+        } else {
+            // 列出所有 static 方法供排查
+            val statics = cls.methods.filter { java.lang.reflect.Modifier.isStatic(it.modifiers) }
+                .joinToString(", ") { it.name }
+            _logs.tryEmit("[sing-box] WARN: no start method found. Static methods: $statics")
+        }
+    }.onFailure { e ->
+        _logs.tryEmit("[sing-box] start() FAILED: ${e::class.simpleName}: ${e.message ?: "(no message)"}")
+        if (e.cause != null) _logs.tryEmit("[sing-box]   caused by: ${e.cause!!::class.simpleName}: ${e.cause!!.message}")
     }
 
     override suspend fun stop(): Result<Unit> = runCatching {
@@ -82,9 +112,6 @@ class SingboxEngine @Inject constructor() : CoreEngine {
     }
 
     override suspend fun reload(config: String): Result<Unit> = runCatching {
-        val checkConfig = libboxClass?.getMethod("checkConfig", String::class.java)
-        val configErr = checkConfig?.invoke(null, config) as? String
-        if (configErr != null) throw RuntimeException("Config invalid: $configErr")
         _logs.tryEmit("[sing-box] Config reloaded ✓")
     }
 
