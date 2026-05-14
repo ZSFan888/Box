@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.proxymax.app"
+    namespace = "com.proxymax"
     compileSdk = 34
 
     defaultConfig {

@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name=".app.ProxyMaxApp"
+        android:name="com.proxymax.app.ProxyMaxApp"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Box"
@@ -24,7 +24,7 @@
 
         <!-- ── 主界面 ─────────────────────────────────────────────── -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.proxymax.MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -35,12 +35,12 @@
 
         <!-- ── 扫码/剪贴板导入 ──────────────────────────────────── -->
         <activity
-            android:name=".ui.scan.ScanImportActivity"
+            android:name="com.proxymax.ui.scan.ScanImportActivity"
             android:exported="false" />
 
         <!-- ── VPN 服务 ───────────────────────────────────────────── -->
         <service
-            android:name=".service.ProxyVpnService"
+            android:name="com.proxymax.service.ProxyVpnService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
@@ -54,7 +54,7 @@
 
         <!-- ── 快捷磁贴 ───────────────────────────────────────────── -->
         <service
-            android:name=".service.ProxyTileService"
+            android:name="com.proxymax.service.ProxyTileService"
             android:exported="true"
             android:icon="@drawable/ic_tile"
             android:label="@string/tile_label"
@@ -66,7 +66,7 @@
 
         <!-- ── 开机自启 ───────────────────────────────────────────── -->
         <receiver
-            android:name=".service.BootReceiver"
+            android:name="com.proxymax.service.BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -76,7 +76,7 @@
 
         <!-- ── 桌面小组件 ─────────────────────────────────────────── -->
         <receiver
-            android:name=".ui.widget.ProxyWidgetReceiver"
+            android:name="com.proxymax.ui.widget.ProxyWidgetReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
