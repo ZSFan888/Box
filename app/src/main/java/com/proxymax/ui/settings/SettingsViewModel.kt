@@ -59,8 +59,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun set(block: suspend MutablePreferences.() -> Unit) = viewModelScope.launch {
-        dataStore.edit { it.block() }
+    fun set(block: suspend (MutablePreferences) -> Unit) = viewModelScope.launch {
+        dataStore.edit { block(it) }
     }
 
     fun toggleAutoSelectCore()     = set { it[SettingsKeys.autoSelectCore]     = !_ui.value.autoSelectCore }
