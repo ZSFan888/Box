@@ -11,7 +11,6 @@ jobs:
       - uses: actions/setup-java@v4
         with: { java-version: "17", distribution: "temurin" }
 
-      # ── 构建 APK ─────────────────────────────────────────────────────
       - name: Build Debug APK
         run: |
           ./gradlew :app:assembleDebug --no-daemon --stacktrace \
@@ -27,7 +26,6 @@ jobs:
           name: APK-debug
           path: app/build/outputs/apk/debug/*.apk
 
-      # ── 模拟器启动测试 ────────────────────────────────────────────────
       - name: Enable KVM
         if: success()
         run: |
@@ -46,41 +44,7 @@ jobs:
           avd-name: test_avd
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            echo "=== Installing APK ==="
-            adb install -r app/build/outputs/apk/debug/*.apk
-
-            echo "=== Clearing logcat ==="
-            adb logcat -c
-
-            echo "=== Launching App ==="
-            adb shell am start -W -n com.proxymax.app/com.proxymax.MainActivity 2>&1 || true
-
-            echo "=== Waiting 10s ==="
-            sleep 10
-
-            echo "=== Capturing logs ==="
-            APP_PID=$(adb shell pidof -s com.proxymax.app 2>/dev/null || true)
-            if [ -n "$APP_PID" ]; then
-              adb logcat -d --pid="$APP_PID" -v time > /tmp/app_logcat.txt 2>&1 || true
-            else
-              adb logcat -d -v time > /tmp/app_logcat.txt 2>&1 || true
-            fi
-
-            adb logcat -d -v time | grep -E \
-              "AndroidRuntime|FATAL EXCEPTION|Process: com\.proxymax|WM-Worker|Caused by" \
-              > /tmp/crash_log.txt 2>&1 || true
-
-            echo "=== Crash / Worker log (last 60 lines) ==="
-            tail -60 /tmp/crash_log.txt || echo "(no crash detected)"
-
-            echo "=== App still running? ==="
-            if adb shell pidof com.proxymax.app > /dev/null 2>&1; then
-              echo "✅ App is running!"
-            else
-              echo "❌ App crashed or not running"
-              exit 1
-            fi
+          script: bash .github/scripts/smoke_test.sh
 
       - name: Upload Crash Log
         if: always()
