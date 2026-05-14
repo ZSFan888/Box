@@ -40,6 +40,8 @@ import com.proxymax.data.parser.SubscriptionParser
 import com.proxymax.data.repository.ProfileRepository
 import com.proxymax.ui.theme.ProxyMaxTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
@@ -48,25 +50,52 @@ class ScanImportActivity : ComponentActivity() {
 
     @Inject lateinit var profileRepo: ProfileRepository
 
+    private val importScope = kotlinx.coroutines.MainScope()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             ProxyMaxTheme {
                 ScanImportScreen(
                     onImported = { name, uris ->
-                        val result = Intent().apply {
-                            putExtra("NODE_URIS",  ArrayList(uris))
-                            putExtra("NODE_COUNT", uris.size)
-                            putExtra("NODE_NAME",  name)
+                        importScope.launch {
+                            val raw = uris.joinToString("\n")
+                            profileRepo.fetchAndSaveProfile(name, "").fold(
+                                onSuccess = {},
+                                onFailure = {}
+                            )
+                            // 直接用 saveRawConfig 写入 DB
+                            runCatching { profileRepo.saveRawConfig(name, "", raw) }
+                                .onSuccess { profile ->
+                                    Toast.makeText(
+                                        this@ScanImportActivity,
+                                        "✓ 已导入 ${uris.size} 个节点",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    setResult(Activity.RESULT_OK, Intent().apply {
+                                        putExtra("PROFILE_ID", profile.id)
+                                        putExtra("NODE_COUNT", uris.size)
+                                    })
+                                    finish()
+                                }
+                                .onFailure { e ->
+                                    Toast.makeText(
+                                        this@ScanImportActivity,
+                                        "导入失败：${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                         }
-                        setResult(Activity.RESULT_OK, result)
-                        Toast.makeText(this, "✓ 识别 ${uris.size} 个节点", Toast.LENGTH_SHORT).show()
-                        finish()
                     },
                     onDismiss = { finish() }
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        importScope.cancel()
+        super.onDestroy()
     }
 }
 

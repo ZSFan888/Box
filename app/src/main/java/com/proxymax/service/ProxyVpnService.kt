@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.proxymax.MainActivity
 import com.proxymax.core.*
 import com.proxymax.data.converter.ConfigConverter
+import com.proxymax.ui.widget.WidgetState
 import com.proxymax.data.model.PerAppMode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -175,6 +176,11 @@ class ProxyVpnService : VpnService() {
                 is CoreState.Error     -> "❌ ${state.message}"
                 else                   -> "ProxyMax"
             }
+            // 同步更新桌面 Widget
+            val connected = state is CoreState.Running
+            val up = if (state is CoreState.Running) state.stats.uploadSpeed.toSpeedStr() else "0 KB/s"
+            val dn = if (state is CoreState.Running) state.stats.downloadSpeed.toSpeedStr() else "0 KB/s"
+            WidgetState.save(this@ProxyVpnService, connected, up, dn)
             startForeground(NOTIF_ID, buildNotification(text))
         }.launchIn(scope)
     }

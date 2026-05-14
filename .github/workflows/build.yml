@@ -22,6 +22,31 @@ jobs:
           grep -E "(Caused by|error:|FAILED|Unresolved|cannot find)" /tmp/build.log | head -60 || true
           grep -q "BUILD SUCCESSFUL" /tmp/build.log && exit 0 || exit 1
 
+
+      - name: Build Release APK
+        if: github.ref == 'refs/heads/main'
+        env:
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # decode keystore from secret (base64)
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            ./gradlew :app:assembleRelease --no-daemon \
+              -Dorg.gradle.jvmargs="-Xmx1g" 2>&1 | tee /tmp/release_build.log
+          else
+            echo "⚠️ KEYSTORE_BASE64 secret not set, skipping release build"
+          fi
+
+      - name: Upload Release APK
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
       - name: Upload APK
         uses: actions/upload-artifact@v4
         if: success()

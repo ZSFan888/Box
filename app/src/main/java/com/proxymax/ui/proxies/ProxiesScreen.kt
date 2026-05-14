@@ -24,6 +24,7 @@ fun ProxiesScreen(vm: ProxiesViewModel = hiltViewModel()) {
 
     // 本地 UI 状态（不需要放进 ViewModel）
     var showAddDialog   by remember { mutableStateOf(false) }
+    var showScanImport  by remember { mutableStateOf(false) }
     val activeProfileId = profiles.firstOrNull { it.isActive }?.id
 
     // 错误 snackbar
@@ -45,6 +46,9 @@ fun ProxiesScreen(vm: ProxiesViewModel = hiltViewModel()) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         else
                             Icon(Icons.Default.Speed, "测速")
+                    }
+                    IconButton(onClick = { showScanImport = true }) {
+                        Icon(Icons.Default.QrCodeScanner, "扫码导入")
                     }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(Icons.Default.Add, "添加订阅")
@@ -112,6 +116,24 @@ fun ProxiesScreen(vm: ProxiesViewModel = hiltViewModel()) {
     }
 
     // 添加订阅弹窗
+    // 扫码导入 launcher
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scanLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            vm.refreshProfiles()
+        }
+    }
+    if (showScanImport) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            val intent = android.content.Intent(context,
+                com.proxymax.ui.scan.ScanImportActivity::class.java)
+            scanLauncher.launch(intent)
+            showScanImport = false
+        }
+    }
+
     if (showAddDialog) {
         AddSubscriptionDialog(
             onDismiss = { showAddDialog = false },
