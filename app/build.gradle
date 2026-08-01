@@ -7,6 +7,7 @@ def static buildTime() {
     return new Date().format("yyyyMMdd_HHmm", TimeZone.getTimeZone("GMT+08:00"))
 }
 
+def appDisplayName = System.getenv("TVBOX_APP_NAME") ?: "TVBox"
 def releaseKeystore = System.getenv("TVBOX_KEYSTORE_FILE")
 def releaseSigningConfigured = releaseKeystore &&
         System.getenv("TVBOX_STORE_PASSWORD") &&
@@ -21,6 +22,7 @@ android {
         targetSdkVersion 28
         versionCode = (System.getenv("TVBOX_VERSION_CODE") ?: "1").toInteger()
         versionName = System.getenv("TVBOX_VERSION_NAME") ?: "1.0.".concat(buildTime())
+        resValue "string", "custom_app_name", appDisplayName
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
