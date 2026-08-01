@@ -7,14 +7,20 @@ def static buildTime() {
     return new Date().format("yyyyMMdd_HHmm", TimeZone.getTimeZone("GMT+08:00"))
 }
 
+def releaseKeystore = System.getenv("TVBOX_KEYSTORE_FILE")
+def releaseSigningConfigured = releaseKeystore &&
+        System.getenv("TVBOX_STORE_PASSWORD") &&
+        System.getenv("TVBOX_KEY_ALIAS") &&
+        System.getenv("TVBOX_KEY_PASSWORD")
+
 android {
     compileSdk 34
 
     defaultConfig {
         applicationId 'com.github.tvbox.osc.tk'
         targetSdkVersion 28
-        versionCode 1
-        versionName "1.0.".concat(buildTime())
+        versionCode (System.getenv("TVBOX_VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("TVBOX_VERSION_NAME") ?: "1.0.".concat(buildTime())
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
@@ -28,11 +34,22 @@ android {
         exclude 'META-INF/DEPENDENCIES'
     }
 
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv("TVBOX_STORE_PASSWORD")
+                keyAlias System.getenv("TVBOX_KEY_ALIAS")
+                keyPassword System.getenv("TVBOX_KEY_PASSWORD")
+                storeType "PKCS12"
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
-            // Keep fork builds directly installable when no private release key is configured.
-            signingConfig signingConfigs.debug
+            signingConfig releaseSigningConfigured ? signingConfigs.release : signingConfigs.debug
         }
     }
 

@@ -1,4 +1,4 @@
-name: Build APKs
+name: Build and Release APKs
 
 on:
 #  push:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -31,7 +31,28 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: Prepare release metadata
+        run: |
+          build_time="$(TZ=Asia/Shanghai date +'%Y%m%d_%H%M')"
+          release_time="$(TZ=Asia/Shanghai date +'%Y-%m-%d %H:%M')"
+          echo "TVBOX_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "TVBOX_VERSION_NAME=1.0.${build_time}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=TVBox ${release_time}" >> "$GITHUB_ENV"
+
+      - name: Configure release signing
+        env:
+          TVBOX_SIGNING_KEY: ${{ secrets.TVBOX_SIGNING_KEY }}
+        run: |
+          test -n "$TVBOX_SIGNING_KEY"
+          printf '%s' "$TVBOX_SIGNING_KEY" | base64 --decode > app/release.p12
+
       - name: Build release APKs
+        env:
+          TVBOX_KEYSTORE_FILE: ${{ github.workspace }}/app/release.p12
+          TVBOX_STORE_PASSWORD: ${{ secrets.TVBOX_STORE_PASSWORD }}
+          TVBOX_KEY_ALIAS: ${{ secrets.TVBOX_KEY_ALIAS }}
+          TVBOX_KEY_PASSWORD: ${{ secrets.TVBOX_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
@@ -55,3 +76,20 @@ jobs:
           name: TVBox-release-apks
           path: artifacts/*.apk
           if-no-files-found: error
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" artifacts/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" \
+            --notes "Automated signed build from commit ${GITHUB_SHA}."
+          release_url="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq '.url')"
+          echo "### Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$RELEASE_TAG]($release_url)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f app/release.p12
