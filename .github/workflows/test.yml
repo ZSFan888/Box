@@ -1,4 +1,4 @@
-name: Test Build
+name: Build APKs
 
 on:
 #  push:
@@ -9,23 +9,43 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out source
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build With Gradle
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Build release APKs
         run: |
           chmod +x gradlew
-          ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all
-      - name: Prepare App
+          ./gradlew assembleRelease --build-cache --parallel --no-daemon --stacktrace --warning-mode all
+
+      - name: Collect APKs
         run: |
-          mkdir -p ${{ github.workspace }}/apk/
-          for file in `find ~ -name "*.apk" -print`; do
-            mv "$file" ${{ github.workspace }}/apk/
-          done
-      - name: Upload App To Artifact
-        uses: actions/upload-artifact@v3
+          mkdir -p artifacts
+          find app/build/outputs/apk -type f -name '*.apk' -exec cp '{}' artifacts/ \;
+          test -n "$(find artifacts -type f -name '*.apk' -print -quit)"
+          ls -lh artifacts
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
         with:
-          name: com.github.tvbox.osc
-          path: ${{ github.workspace }}/apk/*
+          name: TVBox-release-apks
+          path: artifacts/*.apk
+          if-no-files-found: error

@@ -31,7 +31,8 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-
+            // Keep fork builds directly installable when no private release key is configured.
+            signingConfig signingConfigs.debug
         }
     }
 
