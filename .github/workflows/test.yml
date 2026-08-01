@@ -34,6 +34,7 @@ jobs:
       - name: Build release APKs
         run: |
           chmod +x gradlew
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
           ./gradlew assembleRelease --build-cache --parallel --no-daemon --stacktrace --warning-mode all
 
       - name: Collect APKs
