@@ -43,7 +43,8 @@
         android:extractNativeLibs="true"
         android:theme="@style/AppTheme.NoActionBar"
         android:requestLegacyExternalStorage="true"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        tools:replace="android:label">
 
         <activity
             android:name=".ui.activity.HomeActivity"
