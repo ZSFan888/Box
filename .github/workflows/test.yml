@@ -18,11 +18,11 @@ on:
         default: '1.0'
         type: string
       icon_url:
-        description: Optional direct URL to a 512x512 PNG app icon
+        description: Optional direct URL to a PNG, JPEG, or WebP app icon
         required: false
         type: string
       banner_url:
-        description: Optional direct URL to a 640x360 PNG TV banner
+        description: Optional direct URL to a PNG, JPEG, or WebP TV banner
         required: false
         type: string
 
@@ -55,19 +55,25 @@ jobs:
           ICON_URL: ${{ inputs.icon_url }}
           BANNER_URL: ${{ inputs.banner_url }}
         run: |
+          if [[ -n "$ICON_URL" || -n "$BANNER_URL" ]]; then
+            python -m pip install --disable-pip-version-check Pillow==10.4.0
+          fi
           python - <<'PY'
+          import io
           import os
-          import struct
           import urllib.request
           from pathlib import Path
 
-          PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
           MAX_IMAGE_SIZE = 10 * 1024 * 1024
+          ALLOWED_FORMATS = {"PNG", "JPEG", "WEBP"}
 
           def apply_image(env_name, destination, expected_size):
               url = os.environ.get(env_name, "").strip()
               if not url:
                   return
+
+              from PIL import Image, ImageOps
+              Image.MAX_IMAGE_PIXELS = 40_000_000
 
               request = urllib.request.Request(url, headers={"User-Agent": "TVBox-build"})
               with urllib.request.urlopen(request, timeout=30) as response:
@@ -75,14 +81,24 @@ jobs:
 
               if len(data) > MAX_IMAGE_SIZE:
                   raise ValueError(f"{env_name} exceeds 10 MB")
-              if len(data) < 24 or data[:8] != PNG_SIGNATURE or data[12:16] != b"IHDR":
-                  raise ValueError(f"{env_name} must point directly to a PNG file")
 
-              size = struct.unpack(">II", data[16:24])
-              if size != expected_size:
-                  raise ValueError(f"{env_name} must be {expected_size[0]}x{expected_size[1]}, got {size[0]}x{size[1]}")
+              try:
+                  with Image.open(io.BytesIO(data)) as source:
+                      if source.format not in ALLOWED_FORMATS:
+                          raise ValueError(f"unsupported image format: {source.format}")
+                      source.load()
+                      image = ImageOps.exif_transpose(source).convert("RGBA")
+              except Exception as error:
+                  raise ValueError(f"{env_name} must point directly to a valid PNG, JPEG, or WebP image") from error
 
-              Path(destination).write_bytes(data)
+              output = ImageOps.fit(
+                  image,
+                  expected_size,
+                  method=Image.Resampling.LANCZOS,
+                  centering=(0.5, 0.5),
+              )
+              output.save(destination, format="PNG", optimize=True)
+              print(f"{env_name}: {image.width}x{image.height} -> {expected_size[0]}x{expected_size[1]}")
 
           apply_image("ICON_URL", "app/src/main/res/drawable/app_icon.png", (512, 512))
           apply_image("BANNER_URL", "app/src/main/res/drawable/app_banner.png", (640, 360))
