@@ -19,8 +19,8 @@ android {
     defaultConfig {
         applicationId 'com.github.tvbox.osc.tk'
         targetSdkVersion 28
-        versionCode (System.getenv("TVBOX_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("TVBOX_VERSION_NAME") ?: "1.0.".concat(buildTime())
+        versionCode = (System.getenv("TVBOX_VERSION_CODE") ?: "1").toInteger()
+        versionName = System.getenv("TVBOX_VERSION_NAME") ?: "1.0.".concat(buildTime())
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {
