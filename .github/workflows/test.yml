@@ -134,7 +134,7 @@ jobs:
           test -n "$TVBOX_SIGNING_KEY"
           printf '%s' "$TVBOX_SIGNING_KEY" | base64 --decode > app/release.p12
 
-      - name: Build release APKs
+      - name: Test and build release APKs
         env:
           TVBOX_KEYSTORE_FILE: ${{ github.workspace }}/app/release.p12
           TVBOX_STORE_PASSWORD: ${{ secrets.TVBOX_STORE_PASSWORD }}
@@ -143,7 +143,7 @@ jobs:
         run: |
           chmod +x gradlew
           printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
-          ./gradlew assembleRelease --build-cache --parallel --no-daemon --stacktrace --warning-mode all
+          ./gradlew testArmeabiGenericNormalDebugUnitTest assembleRelease --build-cache --parallel --no-daemon --stacktrace --warning-mode all
 
       - name: Collect and verify APKs
         run: |

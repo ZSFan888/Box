@@ -1,6 +1,7 @@
 package com.github.tvbox.osc.cache;
 
 import com.github.tvbox.osc.data.AppDataManager;
+import com.github.tvbox.osc.util.LOG;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,54 +17,26 @@ import java.io.ObjectOutputStream;
 public class CacheManager {
     //反序列,把二进制数据转换成java object对象
     private static Object toObject(byte[] data) {
-        ByteArrayInputStream bais = null;
-        ObjectInputStream ois = null;
-        try {
-            bais = new ByteArrayInputStream(data);
-            ois = new ObjectInputStream(bais);
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ObjectInputStream ois = new ObjectInputStream(bais)) {
             return ois.readObject();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (bais != null) {
-                    bais.close();
-                }
-                if (ois != null) {
-                    ois.close();
-                }
-            } catch (Exception ignore) {
-                ignore.printStackTrace();
-            }
+            LOG.e("CacheManager", e);
         }
         return null;
     }
 
     //序列化存储数据需要转换成二进制
     private static <T> byte[] toByteArray(T body) {
-        ByteArrayOutputStream baos = null;
-        ObjectOutputStream oos = null;
-        try {
-            baos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(baos);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(body);
             oos.flush();
             return baos.toByteArray();
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (baos != null) {
-                    baos.close();
-                }
-                if (oos != null) {
-                    oos.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            LOG.e("CacheManager", e);
         }
-        return new byte[0];
+        return null;
     }
 
     public static <T> void delete(String key, T body) {
@@ -74,9 +47,13 @@ public class CacheManager {
     }
 
     public static <T> void save(String key, T body) {
+        byte[] data = toByteArray(body);
+        if (data == null) {
+            return;
+        }
         Cache cache = new Cache();
         cache.key = key;
-        cache.data = toByteArray(body);
+        cache.data = data;
         AppDataManager.get().getCacheDao().save(cache);
     }
 
