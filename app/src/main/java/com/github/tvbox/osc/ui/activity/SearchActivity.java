@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -41,6 +43,7 @@ import com.github.tvbox.osc.data.SearchPresenter;
 import com.github.tvbox.osc.event.InputMsgEvent;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.event.ServerEvent;
+import com.github.tvbox.osc.event.SearchResultEvent;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchAdapter;
@@ -54,6 +57,7 @@ import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.SearchHelper;
+import com.github.tvbox.osc.util.SearchResultHelper;
 import com.github.tvbox.osc.util.SettingsUtil;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
@@ -79,7 +83,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import me.jessyan.autosize.utils.AutoSizeUtils;
@@ -120,6 +128,11 @@ public class SearchActivity extends BaseActivity {
     private static ArrayList<String> hots = new ArrayList<>();
     private HashMap<String, String> mCheckSources = null;
     private SearchCheckboxDialog mSearchCheckboxDialog = null;
+    private static final long SEARCH_TIMEOUT_MILLIS = 12_000L;
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private final Set<String> pendingSourceKeys = new LinkedHashSet<>();
+    private final Map<String, List<Movie.Video>> groupedResults = new LinkedHashMap<>();
+    private long searchRequestId;
 
     @Override
     protected int getLayoutResID() {
@@ -264,19 +277,12 @@ public class SearchActivity extends BaseActivity {
                 FastClickCheckUtil.check(view);
                 Movie.Video video = searchAdapter.getData().get(position);
                 if (video != null) {
-                    try {
-                        if (sourceViewModel != null) {
-                            pauseRunnable = sourceViewModel.shutdownNow();
-                            JsLoader.stopAll();
-                            sourceViewModel.destroyExecutor();
-                        }
-                    } catch (Throwable th) {
-                        th.printStackTrace();
+                    List<Movie.Video> choices = groupedResults.get(SearchResultHelper.groupKey(video));
+                    if (choices != null && choices.size() > 1) {
+                        showSourceChoices(choices);
+                    } else {
+                        openSearchResult(video);
                     }
-                    Bundle bundle = new Bundle();
-                    bundle.putString("id", video.id);
-                    bundle.putString("sourceKey", video.sourceKey);
-                    jumpActivity(DetailActivity.class, bundle);
                 }
             }
         });
@@ -693,10 +699,8 @@ public class SearchActivity extends BaseActivity {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_SEARCH_RESULT) {
-            try {
-                searchData(event.obj == null ? null : (AbsXml) event.obj);
-            } catch (Exception e) {
-                searchData(null);
+            if (event.obj instanceof SearchResultEvent) {
+                searchData((SearchResultEvent) event.obj);
             }
         }
     }
@@ -707,6 +711,10 @@ public class SearchActivity extends BaseActivity {
 
     private void search(String title) {
         cancel();
+        searchRequestId++;
+        searchHandler.removeCallbacksAndMessages(null);
+        pendingSourceKeys.clear();
+        groupedResults.clear();
         showLoading();
         this.searchTitle = title;
         mGridView.setVisibility(View.GONE);
@@ -756,35 +764,65 @@ public class SearchActivity extends BaseActivity {
                 continue;
             }
             siteKey.add(bean.getKey());
+            pendingSourceKeys.add(bean.getKey());
             allRunCount.incrementAndGet();
         }
         if (siteKey.size() <= 0) {
             Toast.makeText(mContext, getString(R.string.search_site), Toast.LENGTH_SHORT).show();
-            //showEmpty();
+            showEmpty();
             return;
         }
 
         for (String key : siteKey) {
+            final long requestId = searchRequestId;
             sourceViewModel.execute(new Runnable() {
                 @Override
                 public void run() {
-                    sourceViewModel.getSearch(key, searchTitle);
+                    sourceViewModel.getSearch(key, searchTitle, requestId);
                 }
             });
         }
+        final long requestId = searchRequestId;
+        searchHandler.postDelayed(() -> finishSearchOnTimeout(requestId), SEARCH_TIMEOUT_MILLIS);
     }
 
-    private void searchData(AbsXml absXml) {
+    private void searchData(SearchResultEvent result) {
+        if (result.requestId != searchRequestId || !pendingSourceKeys.remove(result.sourceKey)) {
+            return;
+        }
+        AbsXml absXml = result.data;
         if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
-            List<Movie.Video> data = new ArrayList<>();
+            List<Movie.Video> newGroups = new ArrayList<>();
             for (Movie.Video video : absXml.movie.videoList) {
-                data.add(video);
+                String groupKey = SearchResultHelper.groupKey(video);
+                List<Movie.Video> choices = groupedResults.get(groupKey);
+                if (choices == null) {
+                    choices = new ArrayList<>();
+                    groupedResults.put(groupKey, choices);
+                    choices.add(video);
+                    newGroups.add(video);
+                } else {
+                    boolean duplicate = false;
+                    for (Movie.Video choice : choices) {
+                        if (SearchResultHelper.sameResult(choice, video)) {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (!duplicate) {
+                        choices.add(video);
+                        Movie.Video representative = choices.get(0);
+                        representative.sourceCount = choices.size();
+                        int position = searchAdapter.getData().indexOf(representative);
+                        if (position >= 0) searchAdapter.notifyItemChanged(position);
+                    }
+                }
             }
-            if (searchAdapter.getData().size() > 0) {
-                searchAdapter.addData(data);
-            } else {
+            if (!newGroups.isEmpty() && searchAdapter.getData().size() > 0) {
+                searchAdapter.addData(newGroups);
+            } else if (!newGroups.isEmpty()) {
                 showSuccess();
-                searchAdapter.setNewData(data);
+                searchAdapter.setNewData(newGroups);
                 tv_history.setVisibility(View.GONE);
                 searchTips.setVisibility(View.GONE);
                 llWord.setVisibility(View.GONE);
@@ -792,13 +830,79 @@ public class SearchActivity extends BaseActivity {
             }
         }
 
-        int count = allRunCount.decrementAndGet();
-        if (count <= 0) {
+        allRunCount.set(pendingSourceKeys.size());
+        if (pendingSourceKeys.isEmpty()) {
+            searchHandler.removeCallbacksAndMessages(null);
             if (searchAdapter.getData().size() <= 0) {
                 showEmpty();
             }
             cancel();
         }
+    }
+
+    private void finishSearchOnTimeout(long requestId) {
+        if (requestId != searchRequestId || pendingSourceKeys.isEmpty()) return;
+        int timedOut = pendingSourceKeys.size();
+        pendingSourceKeys.clear();
+        allRunCount.set(0);
+        cancel();
+        if (sourceViewModel != null) {
+            sourceViewModel.shutdownNow();
+            sourceViewModel.destroyExecutor();
+        }
+        JsLoader.stopAll();
+        if (searchAdapter.getData().isEmpty()) {
+            showEmpty();
+        } else {
+            showSuccess();
+        }
+        Toast.makeText(mContext, getString(R.string.search_timeout_sources, timedOut), Toast.LENGTH_SHORT).show();
+    }
+
+    private void showSourceChoices(List<Movie.Video> choices) {
+        SelectDialog<Movie.Video> dialog = new SelectDialog<>(this);
+        dialog.setTip(getString(R.string.search_choose_source));
+        dialog.setAdapter(null, new SelectDialogAdapter.SelectDialogInterface<Movie.Video>() {
+            @Override
+            public void click(Movie.Video value, int pos) {
+                dialog.dismiss();
+                openSearchResult(value);
+            }
+
+            @Override
+            public String getDisplay(Movie.Video value) {
+                SourceBean source = ApiConfig.get().getSource(value.sourceKey);
+                String sourceName = source == null ? value.sourceKey : source.getName();
+                return sourceName + (TextUtils.isEmpty(value.note) ? "" : "  " + value.note);
+            }
+        }, new DiffUtil.ItemCallback<Movie.Video>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull Movie.Video oldItem, @NonNull Movie.Video newItem) {
+                return SearchResultHelper.sameResult(oldItem, newItem);
+            }
+
+            @Override
+            public boolean areContentsTheSame(@NonNull Movie.Video oldItem, @NonNull Movie.Video newItem) {
+                return areItemsTheSame(oldItem, newItem);
+            }
+        }, choices, 0);
+        dialog.show();
+    }
+
+    private void openSearchResult(Movie.Video video) {
+        try {
+            if (sourceViewModel != null) {
+                pauseRunnable = sourceViewModel.shutdownNow();
+                JsLoader.stopAll();
+                sourceViewModel.destroyExecutor();
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        Bundle bundle = new Bundle();
+        bundle.putString("id", video.id);
+        bundle.putString("sourceKey", video.sourceKey);
+        jumpActivity(DetailActivity.class, bundle);
     }
 
     private void cancel() {
@@ -808,6 +912,8 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        searchRequestId++;
+        searchHandler.removeCallbacksAndMessages(null);
         cancel();
         try {
             if (sourceViewModel != null) {

@@ -31,6 +31,7 @@ import com.github.tvbox.osc.ui.dialog.HomeIconDialog;
 import com.github.tvbox.osc.ui.dialog.MediaSettingDialog;
 import com.github.tvbox.osc.ui.dialog.ResetDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
+import com.github.tvbox.osc.ui.dialog.SourceHealthDialog;
 import com.github.tvbox.osc.ui.dialog.XWalkInitDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -204,6 +205,10 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 }, history, idx);
                 dialog.show();
             }
+        });
+        findViewById(R.id.llSourceHealth).setOnClickListener(view -> {
+            FastClickCheckUtil.check(view);
+            new SourceHealthDialog(mActivity).show();
         });
         // 1. HOME Configuration ---------------------------------------------------------------- //
         // Select Home Source ------------------------------------

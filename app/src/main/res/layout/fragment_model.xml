@@ -153,6 +153,27 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/llSourceHealth"
+                        android:layout_width="@dimen/vs_140"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="@dimen/vs_5"
+                        android:layout_marginLeft="@dimen/vs_5"
+                        android:layout_marginEnd="@dimen/vs_5"
+                        android:layout_marginRight="@dimen/vs_5"
+                        android:background="@drawable/shape_setting_model_focus"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/source_health_entry"
+                            android:textColor="@android:color/white"
+                            android:textSize="@dimen/ts_20" />
+                    </LinearLayout>
+
+                    <LinearLayout
                         android:id="@+id/llApiHistory"
                         android:layout_width="@dimen/vs_60"
                         android:layout_height="match_parent"

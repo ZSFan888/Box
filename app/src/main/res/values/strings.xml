@@ -271,4 +271,24 @@
 
     <!-- 结束 视频设置 相关配置 -->
 
+    <string name="source_health_entry">Source check</string>
+    <string name="source_health_title">Source health</string>
+    <string name="source_health_start">Check all sources</string>
+    <string name="source_health_disable_failed">Skip failed sources</string>
+    <string name="source_health_not_tested">Not checked</string>
+    <string name="source_health_testing">Checking...</string>
+    <string name="source_health_available">Available · %1$d ms</string>
+    <string name="source_health_failed">Unavailable</string>
+    <string name="source_health_timeout">Timed out</string>
+    <string name="source_health_invalid_url">Invalid URL</string>
+    <string name="source_search_enabled">Included in search</string>
+    <string name="source_search_disabled">Skipped in search</string>
+    <string name="source_health_summary">Total %1$d · Available %2$d · Failed %3$d · Search enabled %4$d</string>
+    <string name="source_health_disabled_count">Skipped %1$d failed sources</string>
+    <string name="search_source_count">%1$d sources</string>
+    <string name="search_choose_source">Choose a source</string>
+    <string name="search_timeout_sources">Skipped %1$d timed-out sources</string>
+    <string name="play_error_retry">Retry</string>
+    <string name="play_error_switch_player">Switch player</string>
+    <string name="play_error_back">Back to sources</string>
 </resources>

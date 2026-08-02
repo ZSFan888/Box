@@ -30,6 +30,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -141,6 +142,7 @@ public class PlayFragment extends BaseLazyFragment {
     private TextView mPlayLoadTip;
     private ImageView mPlayLoadErr;
     private ProgressBar mPlayLoading;
+    private LinearLayout mPlayErrorActions;
     private VodController mController;
     private SourceViewModel sourceViewModel;
     private Handler mHandler;
@@ -238,6 +240,19 @@ public class PlayFragment extends BaseLazyFragment {
         mPlayLoadTip = findViewById(R.id.play_load_tip);
         mPlayLoading = findViewById(R.id.play_loading);
         mPlayLoadErr = findViewById(R.id.play_load_error);
+        mPlayErrorActions = findViewById(R.id.play_error_actions);
+        findViewById(R.id.play_error_retry).setOnClickListener(view -> {
+            autoRetryCount = 0;
+            mPlayErrorActions.setVisibility(View.GONE);
+            play(false);
+        });
+        findViewById(R.id.play_error_switch_player).setOnClickListener(view -> {
+            autoRetryCount = 0;
+            switchPlayer();
+            mPlayErrorActions.setVisibility(View.GONE);
+            play(false);
+        });
+        findViewById(R.id.play_error_back).setOnClickListener(view -> requireActivity().finish());
         mController = new VodController(requireContext());
         mController.setCanChangePosition(true);
         mController.setEnableInNormal(true);
@@ -630,6 +645,10 @@ public class PlayFragment extends BaseLazyFragment {
                 mPlayLoadTip.setVisibility(View.VISIBLE);
                 mPlayLoading.setVisibility(loading ? View.VISIBLE : View.GONE);
                 mPlayLoadErr.setVisibility(err ? View.VISIBLE : View.GONE);
+                mPlayErrorActions.setVisibility(err ? View.VISIBLE : View.GONE);
+                if (err) {
+                    findViewById(R.id.play_error_retry).requestFocus();
+                }
             }
         });
     }
@@ -638,6 +657,7 @@ public class PlayFragment extends BaseLazyFragment {
         mPlayLoadTip.setVisibility(View.GONE);
         mPlayLoading.setVisibility(View.GONE);
         mPlayLoadErr.setVisibility(View.GONE);
+        mPlayErrorActions.setVisibility(View.GONE);
     }
 
     void errorWithRetry(String err, boolean finish) {

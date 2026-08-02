@@ -19,6 +19,7 @@ import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.event.RefreshEvent;
+import com.github.tvbox.osc.event.SearchResultEvent;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.LOG;
@@ -598,20 +599,28 @@ public class SourceViewModel extends ViewModel {
 
     // searchContent
     public void getSearch(String sourceKey, String wd) {
+        getSearch(sourceKey, wd, -1L);
+    }
+
+    public void getSearch(String sourceKey, String wd, long requestId) {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
+        if (sourceBean == null) {
+            postSearchResult(requestId, sourceKey, null);
+            return;
+        }
         int type = sourceBean.getType();
         if (type == 3) {
             try {
                 Spider sp = ApiConfig.get().getCSP(sourceBean);
                 String search = sp.searchContent(wd, false);
                 if (!TextUtils.isEmpty(search)) {
-                    json(searchResult, search, sourceBean.getKey());
+                    json(searchResult, search, sourceBean.getKey(), requestId);
                 } else {
-                    json(searchResult, "", sourceBean.getKey());
+                    json(searchResult, "", sourceBean.getKey(), requestId);
                 }
             } catch (Throwable th) {
                 th.printStackTrace();
-                json(searchResult, "", sourceBean.getKey());
+                json(searchResult, "", sourceBean.getKey(), requestId);
             }
         } else if (type == 0 || type == 1) {
             OkGo.<String>get(sourceBean.getApi())
@@ -632,10 +641,10 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             if (type == 0) {
                                 String xml = response.body();
-                                xml(searchResult, xml, sourceBean.getKey());
+                                xml(searchResult, xml, sourceBean.getKey(), requestId);
                             } else {
                                 String json = response.body();
-                                json(searchResult, json, sourceBean.getKey());
+                                json(searchResult, json, sourceBean.getKey(), requestId);
                             }
                         }
 
@@ -643,7 +652,7 @@ public class SourceViewModel extends ViewModel {
                         public void onError(Response<String> response) {
                             super.onError(response);
                             // searchResult.postValue(null);
-                            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                            postSearchResult(requestId, sourceBean.getKey(), null);
                         }
                     });
         } else if (type == 4) {
@@ -666,19 +675,26 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             String json = response.body();
                             LOG.i(json);
-                            json(searchResult, json, sourceBean.getKey());
+                            json(searchResult, json, sourceBean.getKey(), requestId);
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
                             // searchResult.postValue(null);
-                            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                            postSearchResult(requestId, sourceBean.getKey(), null);
                         }
                     });
         } else {
-            searchResult.postValue(null);
+            postSearchResult(requestId, sourceBean.getKey(), null);
         }
+    }
+
+    private void postSearchResult(long requestId, String sourceKey, AbsXml data) {
+        Object payload = requestId >= 0
+                ? new SearchResultEvent(requestId, sourceKey, data)
+                : data;
+        EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, payload));
     }
 
     // searchContent
@@ -1176,6 +1192,10 @@ public class SourceViewModel extends ViewModel {
     }
 
     private AbsXml xml(MutableLiveData<AbsXml> result, String xml, String sourceKey) {
+        return xml(result, xml, sourceKey, -1L);
+    }
+
+    private AbsXml xml(MutableLiveData<AbsXml> result, String xml, String sourceKey, long requestId) {
         try {
             XStream xstream = new XStream(new DomDriver());//创建Xstram对象
             xstream.autodetectAnnotations(true);
@@ -1191,7 +1211,7 @@ public class SourceViewModel extends ViewModel {
             AbsXml data = (AbsXml) xstream.fromXML(xml);
             absXml(data, sourceKey);
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data));
+                postSearchResult(requestId, sourceKey, data);
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
             } else if (result != null) {
@@ -1205,7 +1225,7 @@ public class SourceViewModel extends ViewModel {
             return data;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                postSearchResult(requestId, sourceKey, null);
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
             } else if (result != null) {
@@ -1216,6 +1236,10 @@ public class SourceViewModel extends ViewModel {
     }
 
     private AbsXml json(MutableLiveData<AbsXml> result, String json, String sourceKey) {
+        return json(result, json, sourceKey, -1L);
+    }
+
+    private AbsXml json(MutableLiveData<AbsXml> result, String json, String sourceKey, long requestId) {
         try {
             // 测试数据
             /*json = "{\n" +
@@ -1239,7 +1263,7 @@ public class SourceViewModel extends ViewModel {
             AbsXml data = absJson.toAbsXml();
             absXml(data, sourceKey);
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data));
+                postSearchResult(requestId, sourceKey, data);
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
             } else if (result != null) {
@@ -1253,7 +1277,7 @@ public class SourceViewModel extends ViewModel {
             return data;
         } catch (Exception e) {
             if (searchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
+                postSearchResult(requestId, sourceKey, null);
             } else if (quickSearchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
             } else if (result != null) {
