@@ -68,6 +68,8 @@ public class RoomDataManger {
             if (record != null && record.dataJson != null && !TextUtils.isEmpty(record.dataJson)) {
                 VodInfo vodInfo = getVodInfoGson().fromJson(record.dataJson, new TypeToken<VodInfo>() {
                 }.getType());
+                vodInfo.sourceKey = record.sourceKey;
+                vodInfo.recordTime = record.updateTime;
                 if (vodInfo.name == null)
                     return null;
                 return vodInfo;
@@ -107,6 +109,7 @@ public class RoomDataManger {
                         info = getVodInfoGson().fromJson(record.dataJson, new TypeToken<VodInfo>() {
                         }.getType());
                         info.sourceKey = record.sourceKey;
+                        info.recordTime = record.updateTime;
                         SourceBean sourceBean = ApiConfig.get().getSource(info.sourceKey);
                         if (sourceBean == null || info.name == null)
                             info = null;

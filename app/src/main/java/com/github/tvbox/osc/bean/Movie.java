@@ -63,6 +63,8 @@ public class Movie implements Serializable {
         public String des;// <![CDATA[权来]
         public String sourceKey;
         public transient int sourceCount = 1;
+        public transient int watchProgress;
+        public transient long watchedAt;
         @XStreamAlias("tag")
         public String tag;
 

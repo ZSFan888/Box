@@ -13,9 +13,12 @@ import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.ui.adapter.HistoryAdapter;
+import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.ConfirmClearDialog;
+import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.util.WatchProgressManager;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 
@@ -24,6 +27,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -136,24 +140,54 @@ public class HistoryActivity extends BaseActivity {
         historyAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(BaseQuickAdapter adapter, View view, int position) {
-//                FastClickCheckUtil.check(view);
-//                VodInfo vodInfo = historyAdapter.getData().get(position);
-//                historyAdapter.remove(position);
-//                RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
-                tvDelete.setFocusable(true);
-                toggleDelMode();
+                showHistoryActions(historyAdapter.getData().get(position), position);
                 return true;
             }
         });
+    }
+
+    private void showHistoryActions(VodInfo vodInfo, int position) {
+        List<String> actions = Arrays.asList(
+                getString(R.string.history_continue),
+                getString(R.string.history_mark_complete),
+                getString(R.string.history_remove));
+        SelectDialog<String> dialog = new SelectDialog<>(this);
+        dialog.setItemCheckDisplay(false);
+        dialog.setTip(vodInfo.name);
+        dialog.setAdapter(null, new SelectDialogAdapter.SelectDialogInterface<String>() {
+            @Override
+            public void click(String value, int pos) {
+                dialog.dismiss();
+                if (pos == 0) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("id", vodInfo.id);
+                    bundle.putString("sourceKey", vodInfo.sourceKey);
+                    bundle.putBoolean("continuePlayback", true);
+                    jumpActivity(DetailActivity.class, bundle);
+                } else if (pos == 1) {
+                    WatchProgressManager.markComplete(vodInfo);
+                    vodInfo.note = WatchProgressManager.describe(vodInfo);
+                    historyAdapter.notifyItemChanged(position);
+                } else {
+                    WatchProgressManager.remove(vodInfo);
+                    RoomDataManger.deleteVodRecord(vodInfo.sourceKey, vodInfo);
+                    historyAdapter.remove(position);
+                }
+            }
+
+            @Override
+            public String getDisplay(String val) {
+                return val;
+            }
+        }, SelectDialogAdapter.stringDiff, actions, 0);
+        dialog.show();
     }
 
     private void initData() {
         List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(100);
         List<VodInfo> vodInfoList = new ArrayList<>();
         for (VodInfo vodInfo : allVodRecord) {
-            if (vodInfo.playNote != null && !vodInfo.playNote.isEmpty()) {
-                vodInfo.note = "看到" + vodInfo.playNote;
-            }
+            vodInfo.note = WatchProgressManager.describe(vodInfo);
             vodInfoList.add(vodInfo);
         }
         historyAdapter.setNewData(vodInfoList);

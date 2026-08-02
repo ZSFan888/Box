@@ -291,4 +291,22 @@
     <string name="play_error_retry">Retry</string>
     <string name="play_error_switch_player">Switch player</string>
     <string name="play_error_back">Back to sources</string>
+    <string name="history_continue">Continue watching</string>
+    <string name="history_mark_complete">Mark as watched</string>
+    <string name="history_remove">Remove from history</string>
+    <string name="update_title">App update</string>
+    <string name="update_ready">Updates are downloaded from ZSFan888/Box Releases. Installation always requires confirmation.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_close">Close</string>
+    <string name="update_checking">Checking GitHub Releases...</string>
+    <string name="update_current">Current: %1$s (%2$d)\nVariant: %3$s / %4$s / %5$s</string>
+    <string name="update_latest">You already have the latest version.</string>
+    <string name="update_available">New release %1$s is available for this device.</string>
+    <string name="update_download">Download update</string>
+    <string name="update_downloading">Downloading %1$d%%</string>
+    <string name="update_install">Install downloaded update</string>
+    <string name="update_allow_install">Allow this app to install unknown apps, then select Install again.</string>
+    <string name="update_error">Update failed: %1$s</string>
+    <string name="update_asset_missing">The release does not contain the required APK: %1$s</string>
+    <string name="update_signature_error">The downloaded APK signature does not match this app.</string>
 </resources>

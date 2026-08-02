@@ -17,10 +17,13 @@ import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.event.ServerEvent;
 import com.github.tvbox.osc.ui.activity.*;
 import com.github.tvbox.osc.ui.adapter.HomeHotVodAdapter;
+import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.UA;
 import com.github.tvbox.osc.util.ImgUtil;
+import com.github.tvbox.osc.util.WatchProgressManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -37,6 +40,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
@@ -96,8 +100,9 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 vod.sourceKey = vodInfo.sourceKey;
                 vod.name = vodInfo.name;
                 vod.pic = vodInfo.pic;
-                if (vodInfo.playNote != null && !vodInfo.playNote.isEmpty())
-                    vod.note = "上次看到" + vodInfo.playNote;
+                vod.watchProgress = WatchProgressManager.percent(vodInfo);
+                vod.watchedAt = vodInfo.recordTime;
+                vod.note = WatchProgressManager.describe(vodInfo);
                 vodList.add(vod);
             }
             homeHotVodAdapter.setNewData(vodList);
@@ -162,6 +167,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 if ((vod.id != null && !vod.id.isEmpty()) && (Hawk.get(HawkConfig.HOME_REC, 0) == 2) && HawkConfig.hotVodDelete) {
                     homeHotVodAdapter.remove(position);
                     VodInfo vodInfo = RoomDataManger.getVodInfo(vod.sourceKey, vod.id);
+                    WatchProgressManager.remove(vodInfo);
                     RoomDataManger.deleteVodRecord(vod.sourceKey, vodInfo);
                     Toast.makeText(mContext, getString(R.string.hm_hist_del), Toast.LENGTH_SHORT).show();
                 } else if (vod.id != null && !vod.id.isEmpty()) {
@@ -196,8 +202,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 Movie.Video vod = ((Movie.Video) adapter.getItem(position));
                 // Additional Check if : Home Rec 0=豆瓣, 1=推荐, 2=历史
                 if ((vod.id != null && !vod.id.isEmpty()) && (Hawk.get(HawkConfig.HOME_REC, 0) == 2)) {
-                    HawkConfig.hotVodDelete = !HawkConfig.hotVodDelete;
-                    homeHotVodAdapter.notifyDataSetChanged();
+                    showHistoryActions(vod, position);
                 } else {
                     Intent newIntent = new Intent(mContext, FastSearchActivity.class);
                     newIntent.putExtra("title", vod.name);
@@ -263,6 +268,46 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvHotListForGrid.setVisibility(View.GONE);
             tvHotListForLine.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void showHistoryActions(Movie.Video vod, int position) {
+        VodInfo vodInfo = RoomDataManger.getVodInfo(vod.sourceKey, vod.id);
+        if (vodInfo == null) return;
+        List<String> actions = Arrays.asList(
+                getString(R.string.history_continue),
+                getString(R.string.history_mark_complete),
+                getString(R.string.history_remove));
+        SelectDialog<String> dialog = new SelectDialog<>(mActivity);
+        dialog.setItemCheckDisplay(false);
+        dialog.setTip(vod.name);
+        dialog.setAdapter(null, new SelectDialogAdapter.SelectDialogInterface<String>() {
+            @Override
+            public void click(String value, int pos) {
+                dialog.dismiss();
+                if (pos == 0) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("id", vod.id);
+                    bundle.putString("sourceKey", vod.sourceKey);
+                    bundle.putBoolean("continuePlayback", true);
+                    jumpActivity(DetailActivity.class, bundle);
+                } else if (pos == 1) {
+                    WatchProgressManager.markComplete(vodInfo);
+                    vod.watchProgress = 100;
+                    vod.note = WatchProgressManager.describe(vodInfo);
+                    homeHotVodAdapter.notifyItemChanged(position);
+                } else {
+                    WatchProgressManager.remove(vodInfo);
+                    RoomDataManger.deleteVodRecord(vod.sourceKey, vodInfo);
+                    homeHotVodAdapter.remove(position);
+                }
+            }
+
+            @Override
+            public String getDisplay(String val) {
+                return val;
+            }
+        }, SelectDialogAdapter.stringDiff, actions, 0);
+        dialog.show();
     }
 
     private void initHomeHotVod(HomeHotVodAdapter adapter) {

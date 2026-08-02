@@ -137,6 +137,7 @@ public class DetailActivity extends BaseActivity {
     private List<Runnable> pauseRunnable = null;
     private String searchTitle = "";
     private boolean hadQuickStart = false;
+    private boolean continuePlayback = false;
     private final List<String> quickSearchWord = new ArrayList<>();
     private ExecutorService searchExecutorService = null;
     private SeriesGroupAdapter seriesGroupAdapter;
@@ -814,8 +815,11 @@ public class DetailActivity extends BaseActivity {
                         mGridViewFlag.scrollToPosition(flagScrollTo);
 
                         refreshList();
-                        if (showPreview) {
+                        if (showPreview || continuePlayback) {
                             jumpToPlay();
+                            continuePlayback = false;
+                        }
+                        if (showPreview) {
                             llPlayerFragmentContainer.setVisibility(View.VISIBLE);
                             llPlayerFragmentContainerBlock.setVisibility(View.VISIBLE);
                             llPlayerFragmentContainerBlock.requestFocus();
@@ -857,6 +861,7 @@ public class DetailActivity extends BaseActivity {
         Intent intent = getIntent();
         if (intent != null && intent.getExtras() != null) {
             Bundle bundle = intent.getExtras();
+            continuePlayback = bundle.getBoolean("continuePlayback", false);
             loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
         }
     }

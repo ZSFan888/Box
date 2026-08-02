@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -14,6 +15,7 @@ import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.util.DefaultConfig;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.ImgUtil;
+import com.github.tvbox.osc.util.WatchProgressManager;
 
 import java.util.ArrayList;
 import me.jessyan.autosize.utils.AutoSizeUtils;
@@ -75,6 +77,10 @@ public class HistoryAdapter extends BaseQuickAdapter<VodInfo, BaseViewHolder> {
             helper.setText(R.id.tvNote, item.note);
         }
         helper.setText(R.id.tvName, item.name);
+        ProgressBar watchProgress = helper.getView(R.id.watchProgress);
+        int percent = WatchProgressManager.percent(item);
+        watchProgress.setProgress(percent);
+        watchProgress.setVisibility(percent > 0 ? View.VISIBLE : View.GONE);
         // helper.setText(R.id.tvActor, item.actor);
         ImageView ivThumb = helper.getView(R.id.ivThumb);
         //由于部分电视机使用glide报错

@@ -143,5 +143,16 @@
                 android:src="@drawable/icon_delete" />
         </FrameLayout>
 
+        <ProgressBar
+            android:id="@+id/watchProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_5"
+            android:layout_gravity="bottom"
+            android:max="100"
+            android:progressBackgroundTint="@color/color_000000_60"
+            android:progressTint="?attr/color_theme"
+            android:visibility="gone" />
+
     </FrameLayout>
 </FrameLayout>

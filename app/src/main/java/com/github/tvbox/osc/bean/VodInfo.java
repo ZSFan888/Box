@@ -57,6 +57,7 @@ public class VodInfo implements Serializable {
     public String sourceKey;
     public String playerCfg = "";
     public boolean reverseSort = false;
+    public transient long recordTime;
 
     public void setVideo(Movie.Video video) {
         last = video.last;

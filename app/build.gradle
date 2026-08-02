@@ -59,12 +59,14 @@ android {
     productFlavors {
         armeabi {
             dimension = "abi"
+            buildConfigField "String", "UPDATE_ABI", '"armeabi"'
             ndk {
                 abiFilters 'armeabi-v7a'
             }
         }
         arm64 {
             dimension = "abi"
+            buildConfigField "String", "UPDATE_ABI", '"arm64"'
             ndk {
                 abiFilters 'arm64-v8a'
             }
@@ -73,20 +75,24 @@ android {
         generic  {
             //通用版本
             dimension = "brand"
+            buildConfigField "String", "UPDATE_BRAND", '"generic"'
         }
 
         hisense {
             //海信的
             applicationId 'com.github.hisense.osc.tk'
             dimension = "brand"
+            buildConfigField "String", "UPDATE_BRAND", '"hisense"'
         }
         normal {
             dimension = "mode"
+            buildConfigField "String", "UPDATE_MODE", '"java"'
             minSdkVersion 21
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         python {
             dimension = "mode"
+            buildConfigField "String", "UPDATE_MODE", '"python"'
             minSdkVersion 21
             // Python 版本需要额外的 Proguard 规则
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-python.pro'

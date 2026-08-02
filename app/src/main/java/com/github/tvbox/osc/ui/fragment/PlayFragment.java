@@ -86,6 +86,7 @@ import com.github.tvbox.osc.util.parser.SuperParse;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.StringUtils;
 import com.github.tvbox.osc.util.SubtitleHelper;
+import com.github.tvbox.osc.util.WatchProgressManager;
 import com.github.tvbox.osc.util.VideoParseRuler;
 import com.github.tvbox.osc.util.XWalkUtils;
 import com.github.tvbox.osc.util.thunder.Jianpian;
@@ -260,8 +261,10 @@ public class PlayFragment extends BaseLazyFragment {
         ProgressManager progressManager = new ProgressManager() {
             @Override
             public void saveProgress(String url, long progress) {
+                videoDuration = mVideoView.getDuration();
                 if (videoDuration == 0) return;
                 CacheManager.save(MD5.string2MD5(url), progress);
+                WatchProgressManager.save(url, progress, videoDuration);
             }
 
             @Override
@@ -1328,6 +1331,7 @@ public class PlayFragment extends BaseLazyFragment {
         //重新播放清除现有进度
         if (reset) {
             CacheManager.delete(MD5.string2MD5(progressKey), 0);
+            WatchProgressManager.clear(progressKey);
             CacheManager.delete(MD5.string2MD5(subtitleCacheKey), "");
         }
         if(Jianpian.isJpUrl(vs.url)){//荐片地址特殊判断

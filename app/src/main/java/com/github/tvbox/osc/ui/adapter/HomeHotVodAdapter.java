@@ -5,6 +5,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -69,6 +70,9 @@ public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
             tvRate.setVisibility(View.VISIBLE);
         }
         helper.setText(R.id.tvName, item.name);
+        ProgressBar watchProgress = helper.getView(R.id.watchProgress);
+        watchProgress.setProgress(item.watchProgress);
+        watchProgress.setVisibility(item.watchProgress > 0 ? View.VISIBLE : View.GONE);
 
         ImageView ivThumb = helper.getView(R.id.ivThumb);
 
