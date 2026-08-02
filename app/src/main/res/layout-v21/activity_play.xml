@@ -47,4 +47,52 @@
         android:text="Now Loading"
         android:textColor="@color/color_FFFFFF_80"
         android:textSize="@dimen/ts_24" />
+
+    <LinearLayout
+        android:id="@+id/play_error_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/vs_50"
+        android:layout_gravity="center"
+        android:layout_marginTop="@dimen/vs_150"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/play_error_retry"
+            android:layout_width="@dimen/vs_140"
+            android:layout_height="match_parent"
+            android:layout_marginRight="@dimen/vs_8"
+            android:background="@drawable/button_dialog_main"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/play_error_retry"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_20" />
+
+        <TextView
+            android:id="@+id/play_error_switch_player"
+            android:layout_width="@dimen/vs_180"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/vs_8"
+            android:layout_marginRight="@dimen/vs_8"
+            android:background="@drawable/button_dialog_main"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/play_error_switch_player"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_20" />
+
+        <TextView
+            android:id="@+id/play_error_back"
+            android:layout_width="@dimen/vs_160"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/vs_8"
+            android:background="@drawable/button_dialog_main"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/play_error_back"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_20" />
+    </LinearLayout>
 </FrameLayout>
